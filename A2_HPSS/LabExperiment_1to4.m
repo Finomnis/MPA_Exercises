@@ -77,3 +77,9 @@ visualize_matrix(x_t_pf, 10);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % LAB EXPERIMENT 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+x_hf = istft(x_t_hf, 512, win('sin', 1024));
+x_pf = istft(x_t_pf, 512, win('sin', 1024));
+
+audiowrite('harmonicComponent.wav', x_hf, fs);
+audiowrite('percussiveComponent.wav', x_pf, fs);
