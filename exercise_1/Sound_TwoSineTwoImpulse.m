@@ -18,4 +18,4 @@ printFile = 'Sound_TwoSineTwoImpulse';
 set(gcf,'PaperPosition',printPaperPosition); 
 print('-dpng',strcat(printFile),'-r600');
 
-wavwrite(f,fs,'Sound_TwoSineTwoImpulse.wav')
+audiowrite('Sound_TwoSineTwoImpulse.wav', f, fs)

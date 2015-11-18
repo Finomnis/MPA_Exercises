@@ -21,4 +21,4 @@ printFile = 'Sound_Chirp';
 set(gcf,'PaperPosition',printPaperPosition); 
 print('-dpng',strcat(printFile),'-r600');
 
-wavwrite(f,fs,'Sound_Chirp.wav')
+audiowrite('Sound_Chirp.wav', f, fs)
