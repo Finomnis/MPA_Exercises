@@ -15,9 +15,9 @@ gamma = 10;
 chi = spectrogram(x, w, N-H);
 Y = abs(chi).^2;
 
-[m, k] = size(chi);
-T_coeff = (0:k).*(H/Fs)+(H/Fs);
-F_coeff = (0:m).*(Fs/N);
+[k, m] = size(chi);
+T_coeff = (0:m).*(H/Fs)+(H/Fs);
+F_coeff = (0:k).*(Fs/N);
 
 Y_compressed= log(1+gamma.*Y);
 

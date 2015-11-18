@@ -17,16 +17,16 @@ chi = spectrogram(x, w, N-H);
 Y = abs(chi).^2;
 Y_decibel = 18.*(log10(Y));
 
-[m, k] = size(chi);
-T_coeff = (0:k).*(H/Fs)+(H/Fs);
-F_coeff = (0:m).*(Fs/N);
+[k, m] = size(chi);
+T_coeff = (0:m).*(H/Fs)+(H/Fs);
+F_coeff = (0:k).*(Fs/N);
 
 figure
 plot(Y)
 title('Spectrogram STFT')
 xlabel('Frequency indices')
 ylabel('Magnitude')
-axis([0 m 0 100])
+axis([0 k 0 100])
 
 figure
 image(Y)
