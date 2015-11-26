@@ -23,8 +23,8 @@ x_p_p = medianFilter(x_p, l_p, 'p');
 m_h = x_p_h > x_p_p;
 m_p = x_p_p >= x_p_h;
 
-visualize_matrix(m_h);
-visualize_matrix(m_p);
+%visualize_matrix(m_h);
+%visualize_matrix(m_p);
 x_t_h = zeros(size(x_t));
 x_t_p = zeros(size(x_t));
 x_t_h(m_h) = x_t(m_h);
