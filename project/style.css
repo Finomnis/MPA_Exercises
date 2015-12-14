@@ -1,0 +1,10 @@
+.warning {
+	border: 2px solid #AAAA77;
+	border-radius: 2px;
+	padding: 5px;
+	margin: 5px;
+	display:inline-block;
+	background-color: #DDDD00;
+	font-weight:bold;
+	width: auto;
+}
