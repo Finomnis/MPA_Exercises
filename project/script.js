@@ -227,6 +227,8 @@
             }
         }
 
+
+        if(max_value == 0.0) max_value = 1.0;
         
         for(var i = 0; i < data.length; i++){
             output[i] = output[i] * 255 / max_value;
