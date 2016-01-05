@@ -44,6 +44,38 @@
 		getUserMedia({audio: true}, handleStream, handleRejection);
 	}
 
+	function handleStream(stream){
+
+		var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        
+
+		analyser   = audioContext.createAnalyser();
+		var source = audioContext.createMediaStreamSource(stream);
+        src=source;
+		source.connect(analyser);
+
+		startDisplaying();
+
+		//console.debug(stream);
+		//console.debug(analyser);
+	}
+
+	function handleRejection(){
+		console.error("Could not aquire user media:", arguments);
+	}
+
+	function startDisplaying(){
+		if(displaying === false){
+			displaying = true;
+			display();
+		}
+	}
+
+	function stopDisplaying(){
+		displaying = false;
+	}
+
     function midiToText(midi){
         var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
         var note = midi % 12;
@@ -77,50 +109,11 @@
         return result;
     }
 
-	function handleStream(stream){
-
-		var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-        
-
-		analyser   = audioContext.createAnalyser();
-		var source = audioContext.createMediaStreamSource(stream);
-        src=source;
-		source.connect(analyser);
-
-		startDisplaying();
-
-		//console.debug(stream);
-		//console.debug(analyser);
-	}
-
-	function handleRejection(){
-		console.error("Could not aquire user media:", arguments);
-	}
-
-	function startDisplaying(){
-		if(displaying === false){
-			displaying = true;
-			display();
-		}
-	}
-
-	function stopDisplaying(){
-		displaying = false;
-	}
 
     function getFrequencyOfBin(binNumber){
         var maxFreq = analyser.context.sampleRate / 2.0;
         var numBins = analyser.frequencyBinCount;
         return (binNumber / (numBins - 1.0)) * maxFreq;
-    }
-
-    function computeMean(array){
-        var sum = 0.0;
-        for(var i = 0; i < array.length; i++){
-            sum += array[i];
-        }
-        return sum/array.length;
     }
 
     function extractMaxima(array){
@@ -186,15 +179,6 @@
     }
 
 
-    function computeMedian(array){
-        var arr = new Array(array.length);
-        for(var i = 0; i < array.length; i++){
-            arr[i] = array[i];
-        }
-        arr = arr.sort()
-        return arr[Math.round(arr.length/2.0)];
-    }
-
     function precompute(data){
         var output = new Float32Array(data.length);
 
@@ -210,17 +194,7 @@
             }
             if(i < lowest_valid_bin) lowest_valid_bin = i;
             if(i > highest_valid_bin) highest_valid_bin = i;
-            var tmp = Math.exp(data[i]/10) / exp10;
-            //tmp = tmp * tmp;
-            output[i] = tmp;
-
-//            output[i] = output[i] - output[Math.round(i/2.0)]
-//                                  - output[Math.round(i/3.0)]
-//                                  - output[Math.round(i/4.0)];
-            if(output[i] < 0){
-                 output[i] = 0;
-            }
-//            output[i] = Math.sqrt(output[i]);
+            output[i] = Math.exp(data[i]/10) / exp10;
 
             if(output[i] > max_value){
                 max_value = output[i];
@@ -254,10 +228,6 @@
 		analyser.getByteFrequencyData(dataArrayB);
 		analyser.getFloatFrequencyData(dataArrayF);
 
-        //var dataTArray = new Float32Array(bufferLength);
-        //var dataTArrayB = new Uint8Array(bufferLength);
-        //analyser.getByteTimeDomainData(dataTArrayB);
-
         drawLiveFreq(precompute(dataArrayF), liveFreqBins);
 //        drawLiveFreq(dataTArrayB, liveFreqBins);
 //		drawRunningFFT(precompute(dataArrayF), runningFFT);
@@ -283,7 +253,6 @@
 			var d = 255 - Math.round(data[i]);
 
 			canvasCtx.fillStyle = 'rgb(' + d + ','+ d +','+ d +')';
-            //if(i == 10)console.log('rgb(' + d + ','+ d +','+ d +')');
 			canvasCtx.fillRect(curFFTDrawOffset, canvasHeight-i*(freqHeight+1), timeWidth, freqHeight);
 		}
 		canvasCtx.beginPath();
