@@ -28,7 +28,7 @@
 	var analyser = null;
 	var displaying = false;
 	var liveFreqBins = $("#debug_liveFrequencyBins");
-	var runningFFT = $("#debug_runningFFT");
+	//var runningFFT = $("#debug_runningFFT");
 
 	var beginTime = Date.now()
 	function t(){
@@ -43,6 +43,39 @@
 
 		getUserMedia({audio: true}, handleStream, handleRejection);
 	}
+
+    function midiToText(midi){
+        var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
+        var note = midi % 12;
+        return notes[note];
+    }
+
+    function frequencyToMidi(freq){
+        return Math.round(Math.log(freq/440.0)/Math.log(2.0)*12+69);
+    } 
+
+    function filterOvertones(maxima){
+        result = [];
+
+        for(var i = 0; i < maxima.length; i++){
+            currentMax = maxima[i];
+            var isOvertone = false;
+            for(var j = 0; j < maxima.length; j++){
+                if(i == j) continue;
+                otherMax = maxima[j];
+                if(otherMax.pos > currentMax.pos) continue;
+                var closestFactor = Math.round(currentMax.pos / (1.0 * otherMax.pos));
+                var estimatedBaseTone = currentMax.pos / (1.0 * closestFactor);
+                if(Math.abs(estimatedBaseTone - otherMax.pos) < 2){
+                    isOvertone = true;
+                }
+            }
+            if(!isOvertone){
+                result.push(currentMax);
+            }
+        }
+        return result;
+    }
 
 	function handleStream(stream){
 
@@ -146,6 +179,8 @@
                 result_maxima.push(maximum);
         }
  
+        result_maxima = filterOvertones(result_maxima);
+
         return result_maxima;
 
     }
@@ -274,7 +309,6 @@
 		var canvasHeight = canvas.height();
 
         var maxima = extractMaxima(data);
-//        console.log(maxima);
         
 		var canvasCtx = canvas.get(0).getContext("2d");
 
@@ -305,8 +339,11 @@
 			canvasCtx.fillRect((barWidth+1) * (maximum+1), canvasHeight-strength, barWidth, strength);
            
             var freq = getFrequencyOfBin(maximum);
-
-            debugText += "<BR>" + Math.round(freq) + " Hz - " + strength;
+            var midi = frequencyToMidi(freq);
+            var note = midiToText(midi);
+            debugText += "<BR>" + Math.round(freq) + " Hz - "
+                         + midi + " - "
+                         + note + " - "  + strength;
         }
         document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
 
