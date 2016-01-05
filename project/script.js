@@ -275,6 +275,68 @@
         
 	}
 
+    function chordEquals(notes1, notes2){
+        if(notes1.length != notes2.length) return false;
+        for(var i = 0; i < notes1.length; i++){
+            if(notes1[i] != notes2[i]) return false;
+        }
+        return true;
+    }
+    
+    function emptyChord(){
+        return [ false, false, false, false, false, false,
+                 false, false, false, false, false, false ];
+    }
+
+    function powerChord(baseNote){
+        var chord = emptyChord();
+        chord[baseNote%12] = true;
+        chord[(baseNote+8)%12] = true;
+        return chord;
+    }
+
+    function resolveChord(midi){
+
+        inputNotes = [ false, false, false, false, false, false,
+                       false, false, false, false, false, false ];
+
+        for(var i = 0; i < midi.length; i++){
+            inputNotes[midi[i]%12] = true;
+        }
+
+        noteCombinations = [
+            [[0, 7], "5"],
+            [[0, 7, 4], ""],
+            [[0, 7, 3], "m"],
+            [[0, 7, 5], "4"],
+            [[0, 7, 5, 10], "7"],
+            [[0, 7, 5, 11], "maj7"]
+        ];
+
+        for(var baseNote = 0; baseNote < 12; baseNote++){
+            
+            for(var i = 0; i < noteCombinations.length; i++){
+                var noteCombination = noteCombinations[i];
+                var notes = noteCombination[0];
+                var notation = noteCombination[1];
+               
+                var refNotes = emptyChord(); 
+
+                for(var j = 0; j < notes.length; j++){
+                    refNotes[(notes[j]+baseNote)%12] = true;
+                }
+
+                if(chordEquals(inputNotes, refNotes)){
+                    return midiToText(baseNote) + notation;
+                }
+            }
+
+        }
+
+        return "--";
+
+    }
+
 	function drawLiveFreq(data, canvas){
 		var canvasWidth = canvas.width();
 		var canvasHeight = canvas.height();
@@ -301,6 +363,7 @@
 		}
 
         //console.log(maxima.length);
+        var midis = []
         var debugText = "";
         for(var i = 0; i < maxima.length; i++){
             var maximum = maxima[i].pos;
@@ -315,10 +378,16 @@
             debugText += "<BR>" + Math.round(freq) + " Hz - "
                          + midi + " - "
                          + note + " - "  + strength;
+            midis.push(midi);
         }
+
+        debugText = "Resolved Chord: <BR>&nbsp;&nbsp;" + resolveChord(midis) + "<BR><BR>" + debugText;
+
         document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
 
 	}
+
+
 
 	main();
 // })();
