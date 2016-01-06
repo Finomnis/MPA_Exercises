@@ -1,27 +1,267 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Guitar Learning and Judgement Tool - An MPA Project</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="jquery-2.1.4.min.js"></script>
-  </head>
-  <body>
-    <span class="warning">
-    This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
-    </span>
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>Guitar Learning and Judgement Tool - An MPA Project</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="jquery-2.1.4.min.js"></script>
+        <style>
 
-    <h1>Debugging</h1>
-    <h2>Live frequency bins</h2>
-    <pre> → Frequency Bins; ↑ Magnitude</pre>
-    <canvas id="debug_liveFrequencyBins" width="1200px" height="300px" style="border:1px solid black"></canvas>
+            .displayedTone {
+                font-size:200px;
+                position:absolute;
+                top:0;
+                left:0;
+                color:white
+            }
 
-    <!--<h2>Running FFT</h2>
-    <pre> → Time; ↑ Frequency bins;</pre>
-    <canvas id="debug_runningFFT" width="1200px" height="600px" style="border:1px solid black"></canvas>
---!>
-    <h2>Results<h2>
-        <p id="debug_text" style="font-size:80%;"></p>
-    <script src="script.js"></script>
-  </body</html>
-</html>
+             .singleToneDisplay {
+                position:relative;
+                font-size:200px;
+                display: inline-block;
+             }
+
+            .singleToneDisplay,
+            .singleToneDisplay.scrollRight,
+            .singleToneDisplay#nextTone {
+                transition: 1s cubic-bezier(0.770, 0.000, 0.175, 1.000),
+                            transform 1.5s cubic-bezier(0.770, 0.000, 0.175, 1.000);
+
+                opacity: 0.4;
+                left: 35%;
+                transform: scale(0.4,0.4);
+            }
+
+            .singleToneDisplay.scrollLeft,
+            .singleToneDisplay#prevTone {
+                transition: 1s cubic-bezier(0.770, 0.000, 0.175, 1.000),
+                            transform 1.5s cubic-bezier(0.770, 0.000, 0.175, 1.000);
+                opacity: 0.4;
+                left: -40%;
+                transform: scale(0.4,0.4);
+            }
+
+            .singleToneDisplay.scrollIn,
+            .singleToneDisplay#currentTone {
+                transition: 1.5s cubic-bezier(0.770, 0.000, 0.175, 1.000),
+                            transform 1s cubic-bezier(0.770, 0.000, 0.175, 1.000);
+                opacity: 1;
+                left: 0;
+                transform: scale(1,1);
+            }
+
+            .singleToneDisplay.scrollOut.scrollLeft,
+            .singleToneDisplay.scrollOut.scrollRight,
+            .singleToneDisplay.scrollOut#prevTone,
+            .singleToneDisplay.scrollOut#nextTone {
+                transition: 1s ease-in;
+                opacity: 0;
+                transform: scale(0,0);
+                width:0px;
+                color:red;
+            }
+
+            .displayedTone.tonePlayedCorrectly {
+                transition: 1s ease-in-out, opacity 1.5s ease-in-out;
+                opacity: 0;
+                transform: scale(2,2);
+                color:green;
+            }
+
+            .displayedTone.tonePlayedIncorrectly {
+                transition: 1s ease-in-out, opacity 1.5s ease-in-out;
+                opacity: 0;
+                transform: scale(2,2);
+                color:red;
+            }
+
+            menu button {
+                cursor: pointer;
+                margin:0 20px;
+                background: #5d5d5d;
+                color:#e6e6e6;
+                border-radius: 3px;
+                box-shadow: 0px 0px 5px #dbdbdb;
+                font-size: 17px;
+                padding: 10px 20px 10px 20px;
+                border: solid #555 2px;
+                display:inline-block;
+            }
+
+            menu button#currentMenuEntry,
+            menu button:active  {
+                color:#5d5d5d;
+                background: #e6e6e6;
+                box-shadow: 0px 0px 3px #3D3D38 inset, 0px 0px 1px 2px #2989d8;
+            }
+
+        </style>
+      </head>
+      <body>
+        <span class="warning">
+        This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
+        </span>
+
+        <h1>Debugging</h1>
+        <h2>Live frequency bins</h2>
+        <pre> → Frequency Bins; ↑ Magnitude</pre>
+        <canvas id="debug_liveFrequencyBins" width="1200px" height="300px" style="border:1px solid black"></canvas>
+
+        <h2>Results<h2>
+            <p id="debug_text" style="font-size:80%;"></p>
+
+
+        <h2>Game draft</h2>
+        <div id="mainWindow" style="width:100%; height:1000px; background:black; color:white; font-family:sans">
+        <div id="header" style="height:200px; padding:10px 20px 50px 20px; text-align:center; background: linear-gradient(to bottom, #222222 49%,#000000 100%)">
+            <h1>Guitar Training and Judgement Tool</h1>
+            <menu style="text-align:center;">
+                <button id="currentMenuEntry">
+                    Training-Mode
+                </button>
+                <button >
+                    Challenge-Mode
+                </button>
+                <button>
+                    Help &amp; About
+                </button>
+                <button>
+                    Settings
+                </button>
+                &nbsp;
+            </menu>
+
+            You are in <b>Training-Mode</b>. Use the arrow keys to navigate the possible chords and play them. The website will recognise when a chord was played and tell you if it was correct or incorrect.
+
+        </div>
+
+        <div id="toneWindow" style="width:100%; height:500px; background: linear-gradient(to bottom, #000000 0%,#2989d8 50%,#207cca 51%,#000000 100%); display:flex;
+                        justify-content: center; align-items: center; flex-direction: column;">
+
+            <div class="tonesDisplay" style="width:100%; text-align:center;">
+                <div class="singleToneDisplay" id="prevTone">
+                    <span class="displayedTone" >C</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay" id="currentTone">
+                    <span class="displayedTone" >C#</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay" id="nextTone">
+                    <span class="displayedTone" >D</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollRight scrollOut">
+                    <span class="displayedTone" >E</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >F</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >F#</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >G</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >G#</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >A</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >B♭</span>
+                    &nbsp;
+                </div>
+                <div class="singleToneDisplay scrollOut scrollRight">
+                    <span class="displayedTone" >B</span>
+                    &nbsp;
+                </div>
+            </div>
+            <div id="explanationDisplay" style="text-align:left; visibility:hidden">
+                <b>Missed tones:</b> <span id="missingTones"></span> <br />
+                <b>Wrong tones:</b> <span id="additionalTones"></span>
+            </div>
+        </div>
+        <div id="footer" style="text-align:center">
+            This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
+        </div>
+        </div>
+        <button id="correct">Correct</button><button id="incorrect">Wrong</button>
+        <script src="script.js"></script>
+        <script>
+        "use_strict";
+
+        function correctAnimation(){
+            var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
+            window.setTimeout(function(){tone.addClass("tonePlayedCorrectly");}, 10);
+            window.setTimeout(function(){tone.remove();}, 3000);
+        }
+
+        function incorrectAnimation(missing, additional){
+            var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
+
+            var mElem = $("#missingTones");
+            mElem.text("");
+
+            var aElem = $("#additionalTones");
+            aElem.text("");
+
+            if(typeof missing !== "undefined"){
+                $("#explanationDisplay").css("visibility", "visible");
+                for(var i=0; i<missing.length; i++){
+                    mElem.text(mElem.text() + " " + missing[i]);
+                }
+            }else{
+                mElem.text("-");
+            }
+
+            if(typeof additional !== "undefined"){
+                $("#explanationDisplay").css("visibility", "visible");
+                for(var i=0; i<additional.length; i++){
+                    aElem.text(aElem.text() + " " + additional[i]);
+                }
+            }else{
+                aElem.text("-");
+            }
+
+            window.setTimeout(function(){tone.addClass("tonePlayedIncorrectly");}, 10);
+            window.setTimeout(function(){tone.remove(); $("#explanationDisplay").css("visibility", "hidden");}, 3000);
+        }
+
+        function nextTone(){
+            if($("#nextTone").size() === 0)
+                return;
+            $("#prevTone").removeAttr("id").addClass("scrollLeft scrollOut");
+            $("#currentTone").attr("id", "prevTone");
+            $("#nextTone").attr("id", "currentTone").removeClass("scrollRight");
+            $("#currentTone").next().attr("id", "nextTone").removeClass("scrollOut");
+        }
+
+        function prevTone(){
+            if($("#prevTone").size() === 0)
+                return;
+            $("#nextTone").removeAttr("id").addClass("scrollRight scrollOut");
+            $("#currentTone").attr("id", "nextTone");
+            $("#prevTone").attr("id", "currentTone").removeClass("scrollLeft");;
+            $("#currentTone").prev().attr("id", "prevTone").removeClass("scrollOut");
+        }
+
+        $("#correct").on("click", correctAnimation);
+        $("#incorrect").on("click", function(){incorrectAnimation(["a", "e"])});
+
+        $(document).on("keydown", function(e){
+            if(e.which == 39)// right arrow key
+                nextTone();
+            if(e.which == 37)// left arrow key
+                prevTone();
+        });
+        </script>
+      </body</html>
+    </html>
