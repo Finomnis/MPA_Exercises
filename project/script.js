@@ -48,7 +48,7 @@
 
 		var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        
+                
 
 		analyser   = audioContext.createAnalyser();
 		var source = audioContext.createMediaStreamSource(stream);
@@ -156,19 +156,19 @@
             maxima.push({pos:i, strength:strength});
         }
 
-        var highest_maximum = 0.0;
-        for(var i = 0; i < maxima.length; i++){
-            var maximum = maxima[i];
-            if(maximum.strength > highest_maximum)
-                highest_maximum = maximum.strength;
+        maxima = maxima.sort(function(a,b){return a.strength < b.strength});
+        var highest_maximum = 1;
+        if(maxima.length > 0){
+            highest_maximum = maxima[Math.min(maxima.length - 1, 1)].strength;
         }
+        //console.log(maxima);
 
         var result_maxima = [];
 
         for(var i = 0; i < maxima.length; i++){
             var maximum = maxima[i];
             maximum.strength = Math.round(maximum.strength *255.0 / highest_maximum);
-            if(maximum.strength > 10)
+            if(maximum.strength > 20)
                 result_maxima.push(maximum);
         }
  
