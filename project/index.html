@@ -18,7 +18,26 @@
 
     <h2>Running FFT</h2>
     <pre> → Time; ↑ Frequency bins;</pre>
+    Minimum Magnitude: <input id="debug_runningFFT_threshold" type="range" min="0" max="255" value="0" oninput="$(this).next().text($(this).val())"/><span>0</span><br />
+    Maximum Frequency: <input id="debug_runningFFT_maxFreq" type="range" min="0" max="0" value="0" oninput="$(this).next().text($(this).val())"/><span>0</span><br />
     <canvas id="debug_runningFFT" width="1200px" height="600px" style="border:1px solid black"></canvas>
+
+    <h2>Live Chroma bins<h2>
+    <canvas id="debug_liveChromaBins" width="1200px" height="300px" style="border:1px solid black"></canvas>
+    <div style="width:1200px;position:relative; font-size:3em;">
+        <span style="position:absolute; top:0; left:0px">C</span>
+        <span style="position:absolute; top:0; left:110px">C#</span>
+        <span style="position:absolute; top:0; left:220px">D</span>
+        <span style="position:absolute; top:0; left:310px">D#</span>
+        <span style="position:absolute; top:0; left:430px">E</span>
+        <span style="position:absolute; top:0; left:540px">F</span>
+        <span style="position:absolute; top:0; left:620px">F#</span>
+        <span style="position:absolute; top:0; left:735px">G</span>
+        <span style="position:absolute; top:0; left:815px">G#</span>
+        <span style="position:absolute; top:0; left:940px">A</span>
+        <span style="position:absolute; top:0; left:1025px">Bb</span>
+        <span style="position:absolute; top:0; left:1125px">B</span>
+    </div>
     <script src="script.js"></script>
   </body>
 </html>
