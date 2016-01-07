@@ -1,100 +1,24 @@
-"use_strict";
+// "use strict";
 
-(function(){
+window.Midi = (function(){
+    var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
 
-	//browser compatability
-	var browserSupported = false;
-	if(typeof navigator.MediaDevices !== "undefined" ){
-		browserSupported = true;
-
-		var getUserMedia = function(constraints, success, fail){
-			var mediaPromise = navigator.MediaDevices.getUserMedia(constraints);
-			mediaPromise.then(success).catch(fail);
-		};
-	}else{
-		navigator.getUserMedia = (navigator.getUserMedia ||
-				  navigator.webkitGetUserMedia ||
-				  navigator.mozGetUserMedia ||
-				  navigator.msGetUserMedia);
-		browserSupported = typeof navigator.getUserMedia !== "undefined";
-
-		var getUserMedia = function(constraints, success, fail){
-			console.debug("getting media");
-			navigator.getUserMedia(constraints, success, fail);
-		};
-	}
-
-	//'class' variables
-	var analyser = null;
-	var displaying = false;
-	var liveFreqBins = $("#debug_liveFrequencyBins");
-	//var runningFFT = $("#debug_runningFFT");
-
-	var beginTime = Date.now()
-	function t(){
-		return Date.now()-beginTime;
-	}
-
-	function main(){
-		if(browserSupported === false){
-			alert("Sorry, your browser does not (yet?) support the Web Audio API, which this Website requires. Have you tried updating your browser?");
-			return;
-		}
-
-		getUserMedia({audio: true}, handleStream, handleRejection);
-	}
-
-	function handleStream(stream){
-
-		var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                
-
-		analyser   = audioContext.createAnalyser();
-		var source = audioContext.createMediaStreamSource(stream);
-        src=source;
-		source.connect(analyser);
-
-		startDisplaying();
-
-		//console.debug(stream);
-		//console.debug(analyser);
-	}
-
-	function handleRejection(){
-		console.error("Could not aquire user media:", arguments);
-	}
-
-	function startDisplaying(){
-		if(displaying === false){
-			displaying = true;
-			display();
-		}
-	}
-
-	function stopDisplaying(){
-		displaying = false;
-	}
-
-    function midiToText(midi){
-        var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
-        var note = midi % 12;
-        return notes[note];
+    function Midi(pitch){
+        this.pitch = pitch;
     }
 
-    function frequencyToMidi(freq){
-        return Math.round(Math.log(freq/440.0)/Math.log(2.0)*12+69);
-    } 
-
+    //================= STATIC PRIVATE METHODS ========================
+    /** @brief removes overtones of any tone which has not been considered an overtone yet
+    */
     function filterOvertones(maxima){
-        result = [];
+        var result = [];
 
         for(var i = 0; i < maxima.length; i++){
-            currentMax = maxima[i];
+            var currentMax = maxima[i];
             var isOvertone = false;
             for(var j = 0; j < maxima.length; j++){
                 if(i == j) continue;
-                otherMax = maxima[j];
+                var otherMax = maxima[j];
                 if(otherMax.pos > currentMax.pos) continue;
                 var closestFactor = Math.round(currentMax.pos / (1.0 * otherMax.pos));
                 var estimatedBaseTone = currentMax.pos / (1.0 * closestFactor);
@@ -109,21 +33,48 @@
         return result;
     }
 
+    function drawLiveFreq(data, maxima){
+        var canvas = $("#debug_liveFrequencyBins");
+        var canvasWidth = canvas.width();
+        var canvasHeight = canvas.height();
 
-    function getFrequencyOfBin(binNumber){
-        var maxFreq = analyser.context.sampleRate / 2.0;
-        var numBins = analyser.frequencyBinCount;
-        return (binNumber / (numBins - 1.0)) * maxFreq;
+
+        var canvasCtx = canvas.get(0).getContext("2d");
+
+        canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        canvasWidth = canvasWidth - data.length - 10;
+
+        var barWidth = (canvasWidth / data.length);
+        var barHeight;
+        var x = 5;
+
+        for(var i = 0; i < data.length; i++) {
+            barHeight = data[i];
+
+            canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',0,0)';
+            canvasCtx.fillRect(x, canvasHeight-barHeight, barWidth, barHeight);
+
+            x += barWidth + 1;
+        }
+
+        for(var i = 0; i < maxima.length; i++){
+            var maximum = maxima[i].pos;
+            var strength = maxima[i].strength;
+            canvasCtx.fillStyle = 'rgb(0,255,0)';
+            canvasCtx.fillRect((barWidth+1) * (maximum+1), canvasHeight-strength, barWidth, strength);
+        }
+
     }
 
+    /** @brief extracts maxima from fft histogram and removes overtones
+    */
     function extractMaxima(array){
-
         var maxima = [];
 
         for(var i = 1; i < array.length-1; i++){
             if(array[i] <= array[i-1] || array[i] <= array[i+1])
                 continue;
-            
+
             var strength = 2*array[i]*array[i];
 
             var abl_max = 0.0;
@@ -150,7 +101,7 @@
                 if(abl < abl_min) abl_min = abl;
                 p++;
             }
-            
+
             strength = (abl_max - abl_min) * array[i];
 
             maxima.push({pos:i, strength:strength});
@@ -161,7 +112,6 @@
         if(maxima.length > 0){
             highest_maximum = maxima[Math.min(maxima.length - 1, 1)].strength;
         }
-        //console.log(maxima);
 
         var result_maxima = [];
 
@@ -171,15 +121,282 @@
             if(maximum.strength > 20)
                 result_maxima.push(maximum);
         }
- 
+
         result_maxima = filterOvertones(result_maxima);
 
         return result_maxima;
 
     }
 
+    var clazz = Midi;
+    //================= STATIC PUBLIC METHODS ========================
+    /** @brief returns a midi instance corresponding to a frequency
+    */
+    var fromFreq = clazz.fromFreq = function(freq){
+        return new Midi(Math.round(Math.log(freq/440.0)/Math.log(2.0)*12+69));
+    }
 
-    function precompute(data){
+    /** @brief returns a list of Midi instances from a fft data vector
+    */
+    var fromSpectrum = clazz.fromSpectrum = function (data){
+        var maxima = extractMaxima(data);
+        var midis = []
+        var debugText = "";
+        for(var i = 0; i < maxima.length; i++){
+            var maximum = maxima[i].pos;
+            var strength = maxima[i].strength;
+
+
+            var freq = game.getFrequencyOfBin(maximum);
+            var midi = Midi.fromFreq(freq);
+            var note = midi.toString();
+            debugText += "<BR>" + Math.round(freq) + " Hz - "
+                         + midi.pitch + " - "
+                         + note + " - "  + strength;
+            midis.push(midi);
+        }
+
+        document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
+        drawLiveFreq(data, maxima);
+
+        return midis;
+
+    }
+
+    //================= PUBLIC METHODS ========================
+    function toString(){
+        return notes[this.pitch % 12];
+    }
+
+    Midi.prototype.constructor = Midi;
+    Midi.prototype.toString = toString;
+
+    return Midi;
+})();
+
+window.Chord = (function(){
+
+    var noteCombinations = [
+            [[0, 7], "5"],
+            [[0, 7, 4], ""],
+            [[0, 7, 3], "m"],
+            [[0, 7, 5], "4"],
+            [[0, 7, 4, 10], "7"],
+            [[0, 7, 4, 11], "maj7"]
+        ];
+
+    function Chord(){
+        this.tones = [ false, false, false, false, false, false,
+                 false, false, false, false, false, false ];
+    }
+
+    var clazz = Chord;
+
+    //================= STATIC PUBLIC METHODS ========================
+    /** @brief returns a Chord with no notes in it
+    */
+    var emptyChord = clazz.emptyChord = function(){
+        return new Chord();
+    }
+
+    /** @brief returns a Chord from a fft data vector
+    */
+    var getChord = clazz.getChord = function(data){
+        var midis = Midi.fromSpectrum(data);
+
+        var chord = emptyChord();
+
+        for(var i = 0; i < midis.length; i++){
+            chord.tones[midis[i].pitch%12] = true;
+        }
+
+        return chord;
+    }
+
+    /** @brief returns a random chord
+    */
+    var random = clazz.random = function(){
+        var baseNote = Math.floor(Math.random() * 12);
+
+        var variant = noteCombinations[Math.floor(Math.random() * noteCombinations.length)];
+
+        var chord = emptyChord();
+
+        var notes = variant[0];
+        for(var i = 0; i < notes.length; i++){
+            chord.tones[(baseNote + notes[i]) % 12] = true;
+        }
+
+        return chord;
+    }
+
+    /** @brief returns a Chord from multiple Midi instances
+    */
+    var fromMidi = clazz.fromMidi = function(midis){
+        var newChord = emptyChord();
+
+        for(var i = 0; i < midis.length; i++){
+            newChord.tones[midis[i].pitch%12] = true;
+        }
+
+        return newChord;
+    }
+
+    //================= PUBLIC METHODS ========================
+    function toString(){
+        for(var baseNote = 0; baseNote < 12; baseNote++){
+
+            for(var i = 0; i < noteCombinations.length; i++){
+                var noteCombination = noteCombinations[i];
+                var notes = noteCombination[0];
+                var notation = noteCombination[1];
+
+                var refNotes = Chord.emptyChord();
+
+                for(var j = 0; j < notes.length; j++){
+                    refNotes.tones[(notes[j]+baseNote)%12] = true;
+                }
+
+                if(this.equals(refNotes)){
+                    return new Midi(baseNote).toString() + notation;
+                }
+            }
+
+        }
+
+        return "--";
+    }
+
+    /** @brief compares this Chord to another Chord
+     *
+     *  @return Object an object with the entries "missing" (the notes which
+     *                 exist in this, but not in other)
+     *                 "wrong" (the notes which exist in other, but not in this)
+     */
+    function compare(other){
+        var missing = emptyChord().tones;
+        var wrong = emptyChord().tones;
+        var correct = true;
+        for(var i = 0; i < this.tones.length; i++){
+            if(this.tones[i] == other.tones[i])
+                continue;
+
+            correct = false;
+
+            if(other.tones[i] == true){
+                missing[i] = true;
+            } else {
+                wrong[i] = true;
+            }
+        }
+
+        return {missing: missing, wrong: wrong};
+    }
+
+    /** @brief compares this Chord to another Chord
+     *
+     *  @return true if the chords are equal, false otherwise
+     */
+    function equals(other){
+        if(this.tones.length != other.tones.length) return false;
+
+        for(var i = 0; i < other.tones.length; i++){
+            if(this.tones[i] != other.tones[i]) return false;
+        }
+
+        return true;
+    }
+
+    Chord.prototype.constructor = Chord;
+    Chord.prototype.compare = compare;
+    Chord.prototype.equals = equals;
+    Chord.prototype.toString = toString;
+
+    return Chord;
+
+})();
+
+window.Game = (function(){
+
+    /** @brief the Game constructor
+     *
+     *  @param getUserMedia A function to retrieve the User media as documented in the Audio API
+     */
+    function Game(getUserMedia){
+        this.reset();
+
+        getUserMedia({audio: true},
+            (function(self){
+                return function(stream){
+                    handleStream(self, stream);
+                }
+            })(this), handleRejection);
+
+        //'class' variables
+        this.analyser = null;
+        this.liveFreqBins = $("#debug_liveFrequencyBins");
+        this.runningFFT = $("#debug_runningFFT");
+    }
+
+    var clazz = Game;
+
+    //================= STATIC PRIVATE METHODS ========================
+    /** @brief creates an audio context, connects the stream to an analyzer
+    */
+    function handleStream(self, stream){
+        self.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        self.analyser = self.audioContext.createAnalyser();
+        self.source = self.audioContext.createMediaStreamSource(stream);
+        self.source.connect(self.analyser);
+    }
+
+    /** @brief handles the user rejecting the media access
+    */
+    function handleRejection(){
+        console.error("Could not aquire user media: ", arguments);
+    }
+
+    //================= PRIVATE METHODS ========================
+    /** @brief extracts a stable (>200ms) chord from the data stream
+     *  call this regularly and examine the resulting object
+     *
+     *  @param data a fft data vector
+     *
+     *  @return a stable chord if it was detected for longer than 200ms
+     *          or null if no chord was detected or for shorter than 200ms
+     */
+    function getStableChord(self, data){
+        var chord = Chord.getChord(data);
+
+        if(!self.currentChord.equals(chord)){
+            self.currentChord = chord;
+            self.currentChordStartTime = new Date().getTime();
+
+            return null;
+        }
+
+        var chordDuration = new Date().getTime() - self.currentChordStartTime;
+
+        if(chordDuration < 200){
+            return null;
+        }
+
+        if(self.currentChord.equals(Chord.emptyChord())){
+            return null;
+        }
+
+        if(self.lastDeliveredChord.equals(self.currentChord)){
+            return null;
+        }
+
+        self.lastDeliveredChord = chord;
+
+        return chord;
+    }
+    /** @brief normalizes a fft data vector, truncates frequencies <75 and >1000Hz
+    */
+    function normalizeData(self, data){
         var output = new Float32Array(data.length);
 
         var exp10 = Math.exp(10);
@@ -187,7 +404,7 @@
         var lowest_valid_bin = data.length;
         var highest_valid_bin = 0;
         for(var i = 0; i < data.length; i++){
-            var freq = getFrequencyOfBin(i);
+            var freq = self.getFrequencyOfBin(i);
             if(freq < 75 || freq > 1000){
                 output[i] = 0.0;
                 continue;
@@ -201,355 +418,170 @@
             }
         }
 
-
         if(max_value == 0.0) max_value = 1.0;
-        
+
         for(var i = 0; i < data.length; i++){
             output[i] = output[i] * 255 / max_value;
         }
-        
 
         return output.slice(0, highest_valid_bin);
     }
 
-	function display(){
-		if(displaying === false || analyser === null)
-			return;
-
-		//console.debug(t() + " Drawing frame!");
-
-		analyser.fftSize = 4096*4;
-        analyser.smoothingTimeConstant = 0.8;
-		var bufferLength = analyser.frequencyBinCount;
-
-		var dataArrayF = new Float32Array(bufferLength);
-		var dataArrayB = new Uint8Array(bufferLength);
-
-		analyser.getByteFrequencyData(dataArrayB);
-		analyser.getFloatFrequencyData(dataArrayF);
-
-        var data = precompute(dataArrayF);
-
-        drawLiveFreq(data, liveFreqBins);
-//        drawLiveFreq(dataTArrayB, liveFreqBins);
-//		drawRunningFFT(precompute(dataArrayF), runningFFT);
-
-        updateChordGame(data);
-
-
-		window.setTimeout(display, 50);
-	}
-
-
-    var currentChordGameTarget = false;
-    var feedbackText = "<BR><BR><BR>";
-    function updateChordGame(data){
-       
-        if(currentChordGameTarget == false){
-                currentChordGameTarget = generateRandomChord();
-                resetFindChord();
-        }
-
-        var chordResult = findChord(currentChordGameTarget.chord, data);
-       
-        var chordFoundText = "";
-        chordFoundText += "Chord found: " + chordResult.found + "<BR>";
-
-        if(chordResult.found){
-
-            feedbackText = "Correct: " + chordResult.correct + "<BR>";
-            feedbackText += "Missing:"
-            for(var i = 0; i < chordResult.missing.length; i++){
-                if(chordResult.missing[i] == true){
-                    feedbackText += " " + midiToText(i);
-                }
-            }
-            feedbackText += "<BR>";
-            feedbackText += "Wrong:";
-            for(var i = 0; i < chordResult.wrong.length; i++){
-                if(chordResult.wrong[i] == true){
-                    feedbackText += " " + midiToText(i);
-                }
-            }
-            feedbackText += "<BR>";
-        }
-
-        chordFoundText += feedbackText;
-
-        document.getElementById('chordfound_text').innerHTML = chordFoundText;
-
- 
-        if(chordResult.found == true){
-            if(chordResult.correct){
-                currentChordGameTarget = generateRandomChord();
-                resetFindChord();
-            }
-        }
-
-
-        document.getElementById('chordgame_text').innerHTML = "Please play: " + currentChordGameTarget.name + "<BR>";
-
-    }
-
-	var curFFTDrawOffset = 0;
-	function drawRunningFFT(data, canvas){
-		var canvasWidth = canvas.width();
-		var canvasHeight = canvas.height();
-
-		var timeWidth = 20;
-		var freqHeight = canvasHeight/data.length-1;
-
-		var canvasCtx = canvas.get(0).getContext("2d");
-
-		canvasCtx.clearRect(curFFTDrawOffset, 0, timeWidth, canvasHeight);
-
-		//console.log(data);
-
-		for(var i = 0; i < data.length; i++) {
-			var d = 255 - Math.round(data[i]);
-
-			canvasCtx.fillStyle = 'rgb(' + d + ','+ d +','+ d +')';
-			canvasCtx.fillRect(curFFTDrawOffset, canvasHeight-i*(freqHeight+1), timeWidth, freqHeight);
-		}
-		canvasCtx.beginPath();
-		canvasCtx.lineWidth = "2";
-		canvasCtx.strokeStyle = "white";
-		canvasCtx.moveTo(curFFTDrawOffset, 0);
-		canvasCtx.lineTo(curFFTDrawOffset, canvasHeight);
-		canvasCtx.stroke();
-
-		curFFTDrawOffset += timeWidth;
-		if(curFFTDrawOffset >= canvasWidth)
-			curFFTDrawOffset = 0;
-
-		canvasCtx.beginPath();
-		canvasCtx.lineWidth = "1";
-		canvasCtx.strokeStyle = "red";
-		canvasCtx.moveTo(curFFTDrawOffset, 0);
-		canvasCtx.lineTo(curFFTDrawOffset, canvasHeight);
-		canvasCtx.stroke();
-        
-	}
-
-    function chordEquals(notes1, notes2){
-        if(notes1.length != notes2.length) return false;
-        for(var i = 0; i < notes1.length; i++){
-            if(notes1[i] != notes2[i]) return false;
-        }
-        return true;
-    }
-    
-    function emptyChord(){
-        return [ false, false, false, false, false, false,
-                 false, false, false, false, false, false ];
-    }
-
-    function powerChord(baseNote){
-        var chord = emptyChord();
-        chord[baseNote%12] = true;
-        chord[(baseNote+8)%12] = true;
-        return chord;
-    }
-
-    var noteCombinations = [
-            [[0, 7], "5"],
-            [[0, 7, 4], ""],
-            [[0, 7, 3], "m"],
-            [[0, 7, 5], "4"],
-            [[0, 7, 4, 10], "7"],
-            [[0, 7, 4, 11], "maj7"]
-        ];
-
-
-    function resolveChord(midi){
-
-        var inputNotes = emptyChord();
-
-        for(var i = 0; i < midi.length; i++){
-            inputNotes[midi[i]%12] = true;
-        }
-
-        for(var baseNote = 0; baseNote < 12; baseNote++){
-            
-            for(var i = 0; i < noteCombinations.length; i++){
-                var noteCombination = noteCombinations[i];
-                var notes = noteCombination[0];
-                var notation = noteCombination[1];
-               
-                var refNotes = emptyChord(); 
-
-                for(var j = 0; j < notes.length; j++){
-                    refNotes[(notes[j]+baseNote)%12] = true;
-                }
-
-                if(chordEquals(inputNotes, refNotes)){
-                    return midiToText(baseNote) + notation;
-                }
-            }
-
-        }
-
-        return "--";
-
+    //================= PUBLIC METHODS ========================
+    /** @brief resets the chord detection data
+    */
+    function reset(){
+        this.currentChord = Chord.emptyChord();
+        this.currentChordStartTime = new Date().getTime();
+        this.lastDeliveredChord = Chord.emptyChord();
     }
 
 
-    function getMidi(data){
+    /** @brief checks if a given chord has been played over 200ms
+     *  call this regularly (about every 50ms or so) to check for the chord
+     *  and examine the result.
+     *
+     *  @param refChord a Chord instance to look for
+     *
+     *  @return an object with this layout:
+     *          {found: true/false, //whether an accord was found at all
+     *           correct: true/fasle, //whether the detected chord matches refChord
+     *           missing: list, //a list of missing tones if a chord was found
+     *           wrong: list} //a list of wrong tones if a chord was found
+     */
+    function findChord(refChord){
+        if(this.analyser == null)
+            return {found: false}
+        this.analyser.fftSize = 4096*4;
+        this.analyser.smoothingTimeConstant = 0.8;
+        var bufferLength = this.analyser.frequencyBinCount;
 
-        var maxima = extractMaxima(data);
-        var midis = []
-        var debugText = "";
-        for(var i = 0; i < maxima.length; i++){
-            var maximum = maxima[i].pos;
-            var strength = maxima[i].strength;
-            
-           
-            var freq = getFrequencyOfBin(maximum);
-            var midi = frequencyToMidi(freq);
-            var note = midiToText(midi);
-            debugText += "<BR>" + Math.round(freq) + " Hz - "
-                         + midi + " - "
-                         + note + " - "  + strength;
-            midis.push(midi);
+        var dataArrayF = new Float32Array(bufferLength);
+
+        this.analyser.getFloatFrequencyData(dataArrayF);
+
+        var data = normalizeData(this, dataArrayF);
+        var stableChord = getStableChord(this, data);
+
+        if(stableChord == null){
+            return {found: false };
         }
-        
-        debugText = "Resolved Chord: <BR>&nbsp;&nbsp;" + resolveChord(midis) + "<BR><BR>" + debugText;
 
-        document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
-
-        return midis;
-
+        var comparison = refChord.compare(stableChord);
+        var result = refChord.equals(stableChord);
+        return { found: true, correct: result, missing: comparison.missing, wrong: comparison.wrong };
     }
 
-    function getChord(data){
-
-        var midi = getMidi(data);
-        
-        var chord = emptyChord();
-                
-        for(var i = 0; i < midi.length; i++){
-            chord[midi[i]%12] = true;
+    function findChordContinous(refChord, interval, callback){
+        var result = this.findChord(refChord);
+        if(result.found === true){
+            callback(result);
+            this.reset();
+        }else{
+            window.setTimeout(function(self){
+                return function(){self.findChordContinous(refChord, interval, callback)}
+            }(this), interval);
         }
-
-        return chord;
-
     }
 
-	function drawLiveFreq(data, canvas){
-		var canvasWidth = canvas.width();
-		var canvasHeight = canvas.height();
-
-        
-		var canvasCtx = canvas.get(0).getContext("2d");
-
-		canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-		canvasWidth = canvasWidth - data.length - 10;
-
-		var barWidth = (canvasWidth / data.length);
-		var barHeight;
-		var x = 5;
-
-		for(var i = 0; i < data.length; i++) {
-			barHeight = data[i];
-            
-
-			canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',0,0)';
-			canvasCtx.fillRect(x, canvasHeight-barHeight, barWidth, barHeight);
-
-			x += barWidth + 1;
-		}
-			
-
-        var maxima = extractMaxima(data);
-        for(var i = 0; i < maxima.length; i++){
-            var maximum = maxima[i].pos;
-            var strength = maxima[i].strength;
-            canvasCtx.fillStyle = 'rgb(0,255,0)';
-    		canvasCtx.fillRect((barWidth+1) * (maximum+1), canvasHeight-strength, barWidth, strength);
-        }
-
+    /** @brief returns the frequency of a given fft bin according to the
+      *        current fft-analyser settings
+      */
+    function getFrequencyOfBin(binNumber){
+        var maxFreq = this.analyser.context.sampleRate / 2.0;
+        var numBins = this.analyser.frequencyBinCount;
+        return (binNumber / (numBins - 1.0)) * maxFreq;
     }
 
 
-    var currentChord = [];
-    var currentChordStartTime = 0;
-    var lastDeliveredChord = [];
+    Game.prototype.constructor = Game;
+    Game.prototype.findChord = findChord;
+    Game.prototype.findChordContinous = findChordContinous;
+    Game.prototype.reset = reset;
+    Game.prototype.getFrequencyOfBin = getFrequencyOfBin;
 
-    function resetFindChord(){
-        currentChord = emptyChord();
-        currentChordStartTime = new Date().getTime();
-        lastDeliveredChord = [];
+    return Game;
+
+})();
+
+var currentChordGameTarget = false;
+var feedbackText = "<BR><BR><BR>";
+function updateChordGame(data){
+
+    if(currentChordGameTarget == false){
+            currentChordGameTarget = Chord.random();
+            resetFindChord();
     }
 
-    function findChord(refChord, data){
+    var chordResult = findChord(currentChordGameTarget.chord, data);
 
-        var chord = getChord(data);
-        
-        if(!chordEquals(chord, currentChord)){
+    var chordFoundText = "";
+    chordFoundText += "Chord found: " + chordResult.found + "<BR>";
 
-            currentChord = chord;
-            currentChordStartTime = new Date().getTime();
+    if(chordResult.found){
 
-            return { found: false };
-
-        }
-
-        var chordDuration = new Date().getTime() - currentChordStartTime;
-
-        if(chordDuration < 200){
-            return { found: false };
-        }
-        
-        if(currentChord.length != 12 || chordEquals(currentChord, emptyChord())){
-            return { found: false };
-        }
-        
-        if(chordEquals(lastDeliveredChord, currentChord)){
-            return { found: false };
-        }
-
-        // if arrived here, we found a stable chord.
-        // now xor the chord with the reference chord.
-        var missing = emptyChord();
-        var wrong = emptyChord();
-        var correct = true; 
-        for(var i = 0; i < chord.length; i++){
-            if(chord[i] == refChord[i])
-                continue;
-                
-            correct = false;
-
-            if(refChord[i] == true){
-                missing[i] = true;
-            } else {
-                wrong[i] = true;
+        feedbackText = "Correct: " + chordResult.correct + "<BR>";
+        feedbackText += "Missing:"
+        for(var i = 0; i < chordResult.missing.length; i++){
+            if(chordResult.missing[i] == true){
+                feedbackText += " " + midiToText(i);
             }
         }
-
-        lastDeliveredChord = chord;
-
-        return { found: true, correct: correct, missing: missing, wrong: wrong };
-
-    }
-
-
-    function generateRandomChord(){
-
-        var baseNote = Math.floor(Math.random() * 12);
-
-        var variant = noteCombinations[Math.floor(Math.random() * noteCombinations.length)];
-
-        var name = midiToText(baseNote) + variant[1];
-        var chord = emptyChord();
-
-        var notes = variant[0];
-        for(var i = 0; i < notes.length; i++){
-            chord[(baseNote + notes[i]) % 12] = true;
+        feedbackText += "<BR>";
+        feedbackText += "Wrong:";
+        for(var i = 0; i < chordResult.wrong.length; i++){
+            if(chordResult.wrong[i] == true){
+                feedbackText += " " + midiToText(i);
+            }
         }
-
-        return {name: name, chord: chord};
-
+        feedbackText += "<BR>";
     }
 
-	main();
- })();
+    chordFoundText += feedbackText;
+
+    document.getElementById('chordfound_text').innerHTML = chordFoundText;
+
+
+    if(chordResult.found == true){
+        if(chordResult.correct){
+            currentChordGameTarget = Chord.random();
+            resetFindChord();
+        }
+    }
+
+
+    document.getElementById('chordgame_text').innerHTML = "Please play: " + currentChordGameTarget.name + "<BR>";
+
+}
+
+//browser compatability
+var browserSupported = false;
+if(typeof navigator.MediaDevices !== "undefined" ){
+    browserSupported = true;
+
+    var getUserMedia = function(constraints, success, fail){
+        var mediaPromise = navigator.MediaDevices.getUserMedia(constraints);
+        mediaPromise.then(success).catch(fail);
+    };
+}else{
+    navigator.getUserMedia = (navigator.getUserMedia ||
+              navigator.webkitGetUserMedia ||
+              navigator.mozGetUserMedia ||
+              navigator.msGetUserMedia);
+    browserSupported = typeof navigator.getUserMedia !== "undefined";
+
+    var getUserMedia = function(constraints, success, fail){
+        console.debug("getting media");
+        navigator.getUserMedia(constraints, success, fail);
+    };
+}
+
+if(browserSupported === false){
+    alert("Sorry, your browser does not (yet?) support the Web Audio API, which this Website requires. Have you tried updating your browser?");
+    // return;
+}else
+
+var game = new Game(getUserMedia);
+var a = Chord.random();
+game.findChordContinous(a, 50, function(arg){console.log(arg)})
+
