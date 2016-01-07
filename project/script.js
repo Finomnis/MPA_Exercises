@@ -1,6 +1,6 @@
 "use_strict";
 
-// (function(){
+(function(){
 
 	//browser compatability
 	var browserSupported = false;
@@ -48,7 +48,7 @@
 
 		var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        
+                
 
 		analyser   = audioContext.createAnalyser();
 		var source = audioContext.createMediaStreamSource(stream);
@@ -156,19 +156,19 @@
             maxima.push({pos:i, strength:strength});
         }
 
-        var highest_maximum = 0.0;
-        for(var i = 0; i < maxima.length; i++){
-            var maximum = maxima[i];
-            if(maximum.strength > highest_maximum)
-                highest_maximum = maximum.strength;
+        maxima = maxima.sort(function(a,b){return a.strength < b.strength});
+        var highest_maximum = 1;
+        if(maxima.length > 0){
+            highest_maximum = maxima[Math.min(maxima.length - 1, 1)].strength;
         }
+        //console.log(maxima);
 
         var result_maxima = [];
 
         for(var i = 0; i < maxima.length; i++){
             var maximum = maxima[i];
             maximum.strength = Math.round(maximum.strength *255.0 / highest_maximum);
-            if(maximum.strength > 10)
+            if(maximum.strength > 20)
                 result_maxima.push(maximum);
         }
  
@@ -228,12 +228,68 @@
 		analyser.getByteFrequencyData(dataArrayB);
 		analyser.getFloatFrequencyData(dataArrayF);
 
-        drawLiveFreq(precompute(dataArrayF), liveFreqBins);
+        var data = precompute(dataArrayF);
+
+        drawLiveFreq(data, liveFreqBins);
 //        drawLiveFreq(dataTArrayB, liveFreqBins);
 //		drawRunningFFT(precompute(dataArrayF), runningFFT);
 
+        updateChordGame(data);
+
+
 		window.setTimeout(display, 50);
 	}
+
+
+    var currentChordGameTarget = false;
+    var feedbackText = "<BR><BR><BR>";
+    function updateChordGame(data){
+       
+        if(currentChordGameTarget == false){
+                currentChordGameTarget = generateRandomChord();
+                resetFindChord();
+        }
+
+        var chordResult = findChord(currentChordGameTarget.chord, data);
+       
+        var chordFoundText = "";
+        chordFoundText += "Chord found: " + chordResult.found + "<BR>";
+
+        if(chordResult.found){
+
+            feedbackText = "Correct: " + chordResult.correct + "<BR>";
+            feedbackText += "Missing:"
+            for(var i = 0; i < chordResult.missing.length; i++){
+                if(chordResult.missing[i] == true){
+                    feedbackText += " " + midiToText(i);
+                }
+            }
+            feedbackText += "<BR>";
+            feedbackText += "Wrong:";
+            for(var i = 0; i < chordResult.wrong.length; i++){
+                if(chordResult.wrong[i] == true){
+                    feedbackText += " " + midiToText(i);
+                }
+            }
+            feedbackText += "<BR>";
+        }
+
+        chordFoundText += feedbackText;
+
+        document.getElementById('chordfound_text').innerHTML = chordFoundText;
+
+ 
+        if(chordResult.found == true){
+            if(chordResult.correct){
+                currentChordGameTarget = generateRandomChord();
+                resetFindChord();
+            }
+        }
+
+
+        document.getElementById('chordgame_text').innerHTML = "Please play: " + currentChordGameTarget.name + "<BR>";
+
+    }
 
 	var curFFTDrawOffset = 0;
 	function drawRunningFFT(data, canvas){
@@ -295,16 +351,7 @@
         return chord;
     }
 
-    function resolveChord(midi){
-
-        inputNotes = [ false, false, false, false, false, false,
-                       false, false, false, false, false, false ];
-
-        for(var i = 0; i < midi.length; i++){
-            inputNotes[midi[i]%12] = true;
-        }
-
-        noteCombinations = [
+    var noteCombinations = [
             [[0, 7], "5"],
             [[0, 7, 4], ""],
             [[0, 7, 3], "m"],
@@ -312,6 +359,15 @@
             [[0, 7, 4, 10], "7"],
             [[0, 7, 4, 11], "maj7"]
         ];
+
+
+    function resolveChord(midi){
+
+        var inputNotes = emptyChord();
+
+        for(var i = 0; i < midi.length; i++){
+            inputNotes[midi[i]%12] = true;
+        }
 
         for(var baseNote = 0; baseNote < 12; baseNote++){
             
@@ -337,11 +393,52 @@
 
     }
 
+
+    function getMidi(data){
+
+        var maxima = extractMaxima(data);
+        var midis = []
+        var debugText = "";
+        for(var i = 0; i < maxima.length; i++){
+            var maximum = maxima[i].pos;
+            var strength = maxima[i].strength;
+            
+           
+            var freq = getFrequencyOfBin(maximum);
+            var midi = frequencyToMidi(freq);
+            var note = midiToText(midi);
+            debugText += "<BR>" + Math.round(freq) + " Hz - "
+                         + midi + " - "
+                         + note + " - "  + strength;
+            midis.push(midi);
+        }
+        
+        debugText = "Resolved Chord: <BR>&nbsp;&nbsp;" + resolveChord(midis) + "<BR><BR>" + debugText;
+
+        document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
+
+        return midis;
+
+    }
+
+    function getChord(data){
+
+        var midi = getMidi(data);
+        
+        var chord = emptyChord();
+                
+        for(var i = 0; i < midi.length; i++){
+            chord[midi[i]%12] = true;
+        }
+
+        return chord;
+
+    }
+
 	function drawLiveFreq(data, canvas){
 		var canvasWidth = canvas.width();
 		var canvasHeight = canvas.height();
 
-        var maxima = extractMaxima(data);
         
 		var canvasCtx = canvas.get(0).getContext("2d");
 
@@ -361,33 +458,98 @@
 
 			x += barWidth + 1;
 		}
+			
 
-        //console.log(maxima.length);
-        var midis = []
-        var debugText = "";
+        var maxima = extractMaxima(data);
         for(var i = 0; i < maxima.length; i++){
             var maximum = maxima[i].pos;
             var strength = maxima[i].strength;
-            
-			canvasCtx.fillStyle = 'rgb(0,255,0)';
-			canvasCtx.fillRect((barWidth+1) * (maximum+1), canvasHeight-strength, barWidth, strength);
-           
-            var freq = getFrequencyOfBin(maximum);
-            var midi = frequencyToMidi(freq);
-            var note = midiToText(midi);
-            debugText += "<BR>" + Math.round(freq) + " Hz - "
-                         + midi + " - "
-                         + note + " - "  + strength;
-            midis.push(midi);
+            canvasCtx.fillStyle = 'rgb(0,255,0)';
+    		canvasCtx.fillRect((barWidth+1) * (maximum+1), canvasHeight-strength, barWidth, strength);
         }
 
-        debugText = "Resolved Chord: <BR>&nbsp;&nbsp;" + resolveChord(midis) + "<BR><BR>" + debugText;
-
-        document.getElementById('debug_text').innerHTML = debugText + "<BR><BR>";
-
-	}
+    }
 
 
+    var currentChord = [];
+    var currentChordStartTime = 0;
+    var lastDeliveredChord = [];
+
+    function resetFindChord(){
+        currentChord = emptyChord();
+        currentChordStartTime = new Date().getTime();
+        lastDeliveredChord = [];
+    }
+
+    function findChord(refChord, data){
+
+        var chord = getChord(data);
+        
+        if(!chordEquals(chord, currentChord)){
+
+            currentChord = chord;
+            currentChordStartTime = new Date().getTime();
+
+            return { found: false };
+
+        }
+
+        var chordDuration = new Date().getTime() - currentChordStartTime;
+
+        if(chordDuration < 200){
+            return { found: false };
+        }
+        
+        if(currentChord.length != 12 || chordEquals(currentChord, emptyChord())){
+            return { found: false };
+        }
+        
+        if(chordEquals(lastDeliveredChord, currentChord)){
+            return { found: false };
+        }
+
+        // if arrived here, we found a stable chord.
+        // now xor the chord with the reference chord.
+        var missing = emptyChord();
+        var wrong = emptyChord();
+        var correct = true; 
+        for(var i = 0; i < chord.length; i++){
+            if(chord[i] == refChord[i])
+                continue;
+                
+            correct = false;
+
+            if(refChord[i] == true){
+                missing[i] = true;
+            } else {
+                wrong[i] = true;
+            }
+        }
+
+        lastDeliveredChord = chord;
+
+        return { found: true, correct: correct, missing: missing, wrong: wrong };
+
+    }
+
+
+    function generateRandomChord(){
+
+        var baseNote = Math.floor(Math.random() * 12);
+
+        var variant = noteCombinations[Math.floor(Math.random() * noteCombinations.length)];
+
+        var name = midiToText(baseNote) + variant[1];
+        var chord = emptyChord();
+
+        var notes = variant[0];
+        for(var i = 0; i < notes.length; i++){
+            chord[(baseNote + notes[i]) % 12] = true;
+        }
+
+        return {name: name, chord: chord};
+
+    }
 
 	main();
-// })();
+ })();
