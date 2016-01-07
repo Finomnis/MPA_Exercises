@@ -75,6 +75,60 @@
                 color:red;
             }
 
+            #contentWindow > div {
+                width:100%;
+                height: 100%;
+                display:flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+                flex-direction: column;
+            }
+
+            #contentWindow > div#trainingMode {
+                background: linear-gradient(to bottom, #000000 0%,#2989d8 50%,#207cca 51%,#000000 100%);
+            }
+
+            #contentWindow > div#challengeMode {
+                background: linear-gradient(to bottom, #000000 0%,#d82d2a 50%,#ca2620 51%,#000000 100%);
+            }
+
+            #contentWindow > div#about {
+                padding-top:400px;
+                overflow:auto;
+                background: linear-gradient(to bottom, #000000 0%,#a2487e 50%,#953f71 51%,#000000 100%);
+            }
+
+            #contentWindow > div#about p {
+                width: 800px;
+            }
+
+            #contentWindow > div#about p a {
+                text-decoration: none;
+                color: #2989d8;
+            }
+
+            #contentWindow > div#settings {
+                background: linear-gradient(to bottom, #000000 0%,#909090 50%,#868686 51%,#000000 100%);
+            }
+
+
+            #contentWindow > div.hidden,
+            #contentWindow > div#about.hidden {
+                transition: height 0.5s cubic-bezier(0.000, 0.575, 0.000, 1.010),
+                            opacity 0.5s cubic-bezier(1.000, -0.010, 1.000, -0.070);
+                height: 0px;
+                padding-top: 0;
+                opacity: 0;
+            }
+
+            #contentWindow > div.visible {
+                transition: opacity 1s linear;
+                height: 100%;
+                opacity: 1;
+            }
+
+
             menu button {
                 cursor: pointer;
                 margin:0 20px;
@@ -88,7 +142,7 @@
                 display:inline-block;
             }
 
-            menu button#currentMenuEntry,
+            menu button.currentMenuEntry,
             menu button:active  {
                 color:#5d5d5d;
                 background: #e6e6e6;
@@ -116,16 +170,16 @@
         <div id="header" style="height:200px; padding:10px 20px 50px 20px; text-align:center; background: linear-gradient(to bottom, #222222 49%,#000000 100%)">
             <h1>Guitar Training and Judgement Tool</h1>
             <menu style="text-align:center;">
-                <button id="currentMenuEntry">
+                <button class="currentMenuEntry" id="trainingModeButton">
                     Training-Mode
                 </button>
-                <button >
+                <button id="challengeModeButton">
                     Challenge-Mode
                 </button>
-                <button>
+                <button id="aboutButton">
                     Help &amp; About
                 </button>
-                <button>
+                <button id="settingsButton">
                     Settings
                 </button>
                 &nbsp;
@@ -135,63 +189,89 @@
 
         </div>
 
-        <div id="toneWindow" style="width:100%; height:500px; background: linear-gradient(to bottom, #000000 0%,#2989d8 50%,#207cca 51%,#000000 100%); display:flex;
-                        justify-content: center; align-items: center; flex-direction: column;">
+        <div id="contentWindow" style="width:100%; height:500px; display:flex;
+                            justify-content: center; align-items: center; flex-direction: column;">
+            <div id="trainingMode" class="visible">
 
-            <div class="tonesDisplay" style="width:100%; text-align:center;">
-                <div class="singleToneDisplay" id="prevTone">
-                    <span class="displayedTone" >C</span>
-                    &nbsp;
+                <div class="tonesDisplay" style="width:100%; text-align:center;">
+                    <div class="singleToneDisplay" id="prevTone">
+                        <span class="displayedTone" >C</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay" id="currentTone">
+                        <span class="displayedTone" >C#</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay" id="nextTone">
+                        <span class="displayedTone" >D</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollRight scrollOut">
+                        <span class="displayedTone" >E</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >F</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >F#</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >G</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >G#</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >A</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >B♭</span>
+                        &nbsp;
+                    </div>
+                    <div class="singleToneDisplay scrollOut scrollRight">
+                        <span class="displayedTone" >B</span>
+                        &nbsp;
+                    </div>
                 </div>
-                <div class="singleToneDisplay" id="currentTone">
-                    <span class="displayedTone" >C#</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay" id="nextTone">
-                    <span class="displayedTone" >D</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollRight scrollOut">
-                    <span class="displayedTone" >E</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >F</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >F#</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >G</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >G#</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >A</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >B♭</span>
-                    &nbsp;
-                </div>
-                <div class="singleToneDisplay scrollOut scrollRight">
-                    <span class="displayedTone" >B</span>
-                    &nbsp;
+                <div id="explanationDisplay" style="text-align:left; visibility:hidden">
+                    <b>Missed tones:</b> <span id="missingTones"></span> <br />
+                    <b>Wrong tones:</b> <span id="additionalTones"></span>
                 </div>
             </div>
-            <div id="explanationDisplay" style="text-align:left; visibility:hidden">
-                <b>Missed tones:</b> <span id="missingTones"></span> <br />
-                <b>Wrong tones:</b> <span id="additionalTones"></span>
+            <div id="challengeMode" class="hidden">
+            Challenge Mode goes here.
+            </div>
+            <div id="about" class="hidden">
+                <h2>Help</h2>
+                <p>This website helps you to improve your guitar playing skills. First grant the website access to the microphone of your computer and find a somewhat quiet location. Then, choose between <b>Training Mode</b> and <b>Challenge Mode.</b></p>
+                <p>In <b>Training Mode</b> you can choose one of the available chords using the arrow keys on your keyboard and play it on your guitar. The website will recognise this and tell you if you hit all the correct strings and if not, which tones were wrong.</p>
+                <p>In <b>Challenge Mode</b> you can choose a song title and play it. Always play the currently shown chord. It comes down to timing here, too, as the next chord will scroll in according to the song!</p>
+
+                <h2>Troubleshooting</h2>
+                <p><b>I get no results</b><br/>Are you sure you have a microphone installed on your computer, it is not muted and you have granted access to it to the website?</p>
+                <p><b>I still get no results</b><br />Did you play loud enough and not too far away from your computer? You should be not farther away than ½ meters.</p>
+
+                <h2>About</h2>
+                <p>We (that is <a href="http://t-animal.de">Tilman</a> and Martin) built this website as a mini-project for the class <a href="https://www.audiolabs-erlangen.de/fau/professor/mueller/teaching/2015w_mpa">Music Processing Analysis</a> at the <a href="https://fau.de">Friedrich-Alexander University</a>. As we both could not play the guitar our goal was to create a fun and easy way to learn playing it - without a teacher being needed.</p>
+
+                <p>We hope you like the website, but as we are relying on technology which is still shifting and not yet completely standardized things might break. Please drop us a notice in this case or fork our project at <a href="https://github.com/Finomnis/MPA_Exercises">github</a>. The analysis code is licensed <a href="http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt">GPL v2</a> by t.animal and finomnis, the website design is licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA</a> by t.animal.</p>
+
+                <p>We are proud to have realized this webiste completely in your browser (relying on javascript for analysis and CSS for animations)! So setting up your own copy is as easy as cloning <a href="https://github.com/Finomnis/MPA_Exercises">our repo</a> and deploying it on the webserver of your choice. However, this means a fairly recent browser is required, e.g. Chrome ≥ 47 or Firefox ≥ 38.</p>
+            </div>
+
+            <div id="settings" class="hidden">
+                <h2>Settings</h2>
+                Sorry, no settings yet.
             </div>
         </div>
-        <div id="footer" style="text-align:center">
+        <div id="footer" style="text-align:center; margin-top:100px; font-size:0.8em">
             This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
-        </div>
         </div>
         <button id="correct">Correct</button><button id="incorrect">Wrong</button>
         <script src="script.js"></script>
@@ -253,8 +333,21 @@
             $("#currentTone").prev().attr("id", "prevTone").removeClass("scrollOut");
         }
 
+        var transition = null;
+        function changePage(target){
+            $("#contentWindow .visible").removeClass("visible").addClass("hidden");
+            $(".currentMenuEntry").removeClass("currentMenuEntry");
+            $("#"+target+"Button").addClass("currentMenuEntry");
+            window.clearTimeout(transition);
+            transition = window.setTimeout(function(){$("#"+target).removeClass("hidden").addClass("visible");}, 750);
+        }
+
         $("#correct").on("click", correctAnimation);
         $("#incorrect").on("click", function(){incorrectAnimation(["a", "e"])});
+        $("#trainingModeButton").on("click", function(){changePage("trainingMode")});
+        $("#challengeModeButton").on("click", function(){changePage("challengeMode")});
+        $("#aboutButton").on("click", function(){changePage("about")});
+        $("#settingsButton").on("click", function(){changePage("settings")});
 
         $(document).on("keydown", function(e){
             if(e.which == 39)// right arrow key
