@@ -20,18 +20,28 @@ body {
  * Tones and tone-animations
  */
 
-.displayedTone {
-  font-size:200px;
-  position:absolute;
-  top:0;
-  left:0;
-  color:white
-}
 
 .singleToneDisplay {
   position:relative;
   font-size:200px;
   display: inline-block;
+  width:0px;
+  overflow:visible;
+}
+
+.singleToneDisplay .dummyTone{
+	position: absolute;
+	top:0;
+	left:0;
+	color:rgba(0,0,0,0);
+}
+
+.displayedTone {
+  font-size:200px;
+  position:absolute;
+  top:0;
+  left:-50%;
+  color:white;
 }
 
 .singleToneDisplay,

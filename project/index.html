@@ -112,12 +112,12 @@
         }
 
         function writeChords(chords, target){
-            var dummy = $('<div class="singleToneDisplay"><span class="displayedTone" ></span>&nbsp;</div>');
+            var dummy = $('<div class="singleToneDisplay"><span class="dummyTone"><span></span><span class="displayedTone" ></span></span>&nbsp;</div>');
 
             target.children().remove();
             for(var i=0; i<chords.length; i++){
                 var newTone = dummy.clone();
-                newTone.children().eq(0).text(chords[i]);
+                newTone.children().children().text(chords[i]);
 
                 if(i==0)
                     newTone.attr("id", "currentTone");
@@ -165,13 +165,13 @@
         }
 
         function correctAnimation(){
-            var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
-            window.setTimeout(function(){tone.addClass("tonePlayedCorrectly");}, 10);
+            var tone = $("#currentTone .dummyTone").clone().removeAttr("id").appendTo("#currentTone");
+            window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedCorrectly");}, 10);
             window.setTimeout(function(){tone.remove();}, 3000);
         }
 
         function incorrectAnimation(missing, additional){
-            var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
+            var tone = $("#currentTone .dummyTone").clone().removeAttr("id").appendTo("#currentTone");
 
             var mElem = $("#missingTones");
             mElem.text("");
@@ -197,7 +197,7 @@
                 aElem.text("-");
             }
 
-            window.setTimeout(function(){tone.addClass("tonePlayedIncorrectly");}, 10);
+            window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedIncorrectly");}, 10);
             window.setTimeout(function(){tone.remove(); $("#explanationDisplay").css("visibility", "hidden");}, 3000);
         }
 
