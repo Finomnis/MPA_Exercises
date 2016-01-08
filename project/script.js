@@ -1,7 +1,6 @@
 // "use strict";
 
 window.Midi = (function(){
-    var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B♭", "B"];
 
     function Midi(pitch){
         this.pitch = pitch;
@@ -129,6 +128,9 @@ window.Midi = (function(){
     }
 
     var clazz = Midi;
+
+
+    var notes = clazz.notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B♭", "B"];
     //================= STATIC PUBLIC METHODS ========================
     /** @brief returns a midi instance corresponding to a frequency
     */
@@ -177,13 +179,13 @@ window.Midi = (function(){
 window.Chord = (function(){
 
     var noteCombinations = [
-            [[0, 7], "5"],
-            [[0, 7, 4], ""],
-            [[0, 7, 3], "m"],
-            [[0, 7, 5], "4"],
-            [[0, 7, 3, 10], "m7"],
-            [[0, 7, 4, 10], "7"],
-            [[0, 7, 4, 11], "maj7"]
+            {notes:[0, 7],  name: "5"},
+            {notes:[0, 7, 4], name:  ""},
+            {notes:[0, 7, 3],  name: "m"},
+            {notes:[0, 7, 5],  name: "4"},
+            {notes:[0, 7, 3, 10],  name: "m7"},
+            {notes:[0, 7, 4, 10],  name: "7"},
+            {notes:[0, 7, 4, 11],  name: "maj7"}
         ];
 
     function Chord(){
@@ -223,9 +225,8 @@ window.Chord = (function(){
 
         var chord = emptyChord();
 
-        var notes = variant[0];
-        for(var i = 0; i < notes.length; i++){
-            chord.tones[(baseNote + notes[i]) % 12] = true;
+        for(var i = 0; i < variant.notes.length; i++){
+            chord.tones[(baseNote + variant.notes[i]) % 12] = true;
         }
 
         return chord;
@@ -243,23 +244,37 @@ window.Chord = (function(){
         return newChord;
     }
 
+    /** @brief returns all possible chord names
+     */
+    var getResolvableChordNames = clazz.getResolvableChordNames = function(){
+        var chordNames = {all:[]};
+
+        for(var i = 0; i < Midi.notes.length; i++){
+            chordNames[Midi.notes[i]] = [];
+            for(var j = 0; j < noteCombinations.length; j++){
+                chordNames.all.push(Midi.notes[i] + noteCombinations[j].name);
+                chordNames[Midi.notes[i]].push(Midi.notes[i] + noteCombinations[j].name);
+            }
+        }
+
+        return chordNames;
+    }
+
     //================= PUBLIC METHODS ========================
     function toString(){
         for(var baseNote = 0; baseNote < 12; baseNote++){
 
             for(var i = 0; i < noteCombinations.length; i++){
-                var noteCombination = noteCombinations[i];
-                var notes = noteCombination[0];
-                var notation = noteCombination[1];
+                var combination = noteCombinations[i];
 
                 var refNotes = Chord.emptyChord();
 
-                for(var j = 0; j < notes.length; j++){
-                    refNotes.tones[(notes[j]+baseNote)%12] = true;
+                for(var j = 0; j < combination.notes.length; j++){
+                    refNotes.tones[(combination.notes[j]+baseNote)%12] = true;
                 }
 
                 if(this.equals(refNotes)){
-                    return new Midi(baseNote).toString() + notation;
+                    return new Midi(baseNote).toString() + combination.name;
                 }
             }
 

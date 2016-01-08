@@ -5,6 +5,7 @@
       <title>Guitar Learning and Judgement Tool - An MPA Project</title>
       <link rel="stylesheet" href="style.css">
       <script src="jquery-2.1.4.min.js"></script>
+      <script src="js.cookie.js"></script>
     </head>
     <body>
         <div id="mainWindow" style="width:100%; height:1000px; background:black; color:white; font-family:sans">
@@ -35,50 +36,6 @@
             <div id="trainingMode" class="visible">
 
                 <div class="tonesDisplay" style="width:100%; text-align:center;">
-                    <div class="singleToneDisplay" id="prevTone">
-                        <span class="displayedTone" >C</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay" id="currentTone">
-                        <span class="displayedTone" >C#</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay" id="nextTone">
-                        <span class="displayedTone" >D</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollRight scrollOut">
-                        <span class="displayedTone" >E</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >F</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >F#</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >G</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >G#</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >A</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >B♭</span>
-                        &nbsp;
-                    </div>
-                    <div class="singleToneDisplay scrollOut scrollRight">
-                        <span class="displayedTone" >B</span>
-                        &nbsp;
-                    </div>
                 </div>
                 <div id="explanationDisplay" style="text-align:left; visibility:hidden">
                     <b>Missed tones:</b> <span id="missingTones"></span> <br />
@@ -86,7 +43,9 @@
                 </div>
             </div>
             <div id="challengeMode" class="hidden">
-            Challenge Mode goes here.
+
+                <div class="tonesDisplay" style="width:100%; text-align:center;">
+                </div>
             </div>
             <div id="about" class="hidden">
                 <h2>Help</h2>
@@ -108,7 +67,11 @@
 
             <div id="settings" class="hidden">
                 <h2>Settings</h2>
-                Sorry, no settings yet.
+                Select all chords which you want to have available in training and challenge mode.
+                <table id="settingsDisplay"></table>
+                <button id="resetTrainingModeChordsButton">
+                    Reset to default (9 most important chords)
+                </button>
             </div>
         </div>
         <div id="footer" style="text-align:center; margin-top:100px; font-size:0.8em">
@@ -128,6 +91,78 @@
         <script src="script.js"></script>
         <script>
         "use strict";
+
+        writeSettings();
+        writeTrainingChords();
+
+        function loadTrainingModeChords(){
+            var chords = Cookies.getJSON("trainingModeChords");
+            if(typeof chords === "undefined"){
+                return ["A", "C", "D", "E", "G", "Am", "Em", "Dm"];
+            }
+            return chords;
+        }
+
+        function saveTrainingModeChords(chords){
+            Cookies.set("trainingModeChords", chords, {expires: 365});
+        }
+
+        function resetTrainingModeChords(){
+            Cookies.remove("trainingModeChords");
+        }
+
+        function writeChords(chords, target){
+            var dummy = $('<div class="singleToneDisplay"><span class="displayedTone" ></span>&nbsp;</div>');
+
+            target.children().remove();
+            for(var i=0; i<chords.length; i++){
+                var newTone = dummy.clone();
+                newTone.children().eq(0).text(chords[i]);
+
+                if(i==0)
+                    newTone.attr("id", "currentTone");
+                else if(i==1)
+                    newTone.attr("id", "nextTone");
+                else
+                    newTone.addClass("scrollRight scrollOut");
+
+                target.append(newTone);
+            }
+        }
+
+        function writeTrainingChords(){
+            writeChords(loadTrainingModeChords(), $("#trainingMode .tonesDisplay"));
+        }
+
+        function writeSettings(){
+            var settingsDisplay = $("#settingsDisplay");
+            settingsDisplay.children().remove();
+
+            var chords = Chord.getResolvableChordNames();
+            var selectedChords = loadTrainingModeChords();
+
+            for(var i=0; i<Midi.notes.length; i++){
+                var line = "<tr><td class='chordName'>"+Midi.notes[i]+": </td>";
+
+                for(var j=0; j<chords[Midi.notes[i]].length; j++){
+                    var chord = chords[Midi.notes[i]][j];
+                    line += "<td>"+chord+" <input type='checkbox' name='"+chord+"' ";
+                    if(selectedChords.indexOf(chord) !== -1){
+                        line += "checked='checked' ";
+                    }
+                    line += "</td>";
+                }
+
+                line += "</tr>";
+
+                settingsDisplay.append(line);
+            }
+
+            settingsDisplay.find(":checkbox").on("change", function(){
+                saveTrainingModeChords(settingsDisplay.find(":checkbox:checked").toArray().map(function(arg){return arg.name}));
+                writeTrainingChords();
+            })
+        }
 
         function correctAnimation(){
             var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
@@ -199,6 +234,7 @@
         $("#challengeModeButton").on("click", function(){changePage("challengeMode")});
         $("#aboutButton").on("click", function(){changePage("about")});
         $("#settingsButton").on("click", function(){changePage("settings")});
+        $("#resetTrainingModeChordsButton").on("click", function(){resetTrainingModeChords(); writeSettings(); writeTrainingChords()});
 
         $(document).on("keydown", function(e){
             if(e.which == 39)// right arrow key

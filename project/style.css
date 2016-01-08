@@ -16,6 +16,10 @@ body {
 }
 
 
+/*
+ * Tones and tone-animations
+ */
+
 .displayedTone {
   font-size:200px;
   position:absolute;
@@ -84,23 +88,27 @@ body {
   color:red;
 }
 
-#contentWindow > div {
-  width:100%;
-  height: 100%;
-  display:flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  flex-direction: column;
-}
+
+/*
+ * Training Mode
+ */
 
 #contentWindow > div#trainingMode {
   background: linear-gradient(to bottom, #000000 0%,#2989d8 50%,#207cca 51%,#000000 100%);
 }
 
+
+/*
+ * Challenge Mode
+ */
+
 #contentWindow > div#challengeMode {
   background: linear-gradient(to bottom, #000000 0%,#d82d2a 50%,#ca2620 51%,#000000 100%);
 }
+
+/*
+ * About
+ */
 
 #contentWindow > div#about {
   padding-top:400px;
@@ -117,10 +125,47 @@ body {
   color: #2989d8;
 }
 
+/*
+ * Settings
+ */
+
 #contentWindow > div#settings {
   background: linear-gradient(to bottom, #000000 0%,#909090 50%,#868686 51%,#000000 100%);
 }
 
+#contentWindow > div#settings tr {
+    line-height: 1.5em;
+}
+
+#contentWindow > div#settings td {
+    text-align: right;
+    padding-right: 15px;
+}
+
+#contentWindow > div#settings td.chordName {
+    text-align: left;
+    padding-right: 20px;
+    font-weight: bold;
+}
+
+#contentWindow > div#settings td input {
+    margin: 0;
+}
+
+
+/*
+ * Content window
+ */
+
+#contentWindow > div {
+  width:100%;
+  height: 100%;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  flex-direction: column;
+}
 
 #contentWindow > div.hidden,
 #contentWindow > div#about.hidden {
@@ -137,6 +182,10 @@ body {
   opacity: 1;
 }
 
+
+/*
+ * Menu
+ */
 
 menu button {
   cursor: pointer;
