@@ -338,8 +338,7 @@ window.Game = (function(){
      *
      *  @param getUserMedia A function to retrieve the User media as documented in the Audio API
      */
-    function Game(getUserMedia){
-        this.reset();
+    function Game(getUserMedia, rootElem){
 
         getUserMedia({audio: true},
             (function(self){
@@ -350,8 +349,37 @@ window.Game = (function(){
 
         //'class' variables
         this.analyser = null;
+        this.currentTransition = null;
+        this.rootElem = $(rootElem);
         this.liveFreqBins = $("#debug_liveFrequencyBins");
         this.runningFFT = $("#debug_runningFFT");
+
+        //set callbacks
+        (function(self){
+            self.rootElem.find("#correct").on("click", function(){self.correctAnimation()});
+            self.rootElem.find("#incorrect").on("click", function(){self.incorrectAnimation(["a", "e"])});
+            self.rootElem.find("#trainingModeButton").on("click", function(){self.changePage("trainingMode")});
+            self.rootElem.find("#challengeModeButton").on("click", function(){self.changePage("challengeMode")});
+            self.rootElem.find("#aboutButton").on("click", function(){self.changePage("about")});
+            self.rootElem.find("#settingsButton").on("click", function(){self.changePage("settings")});
+            self.rootElem.find("#resetTrainingModeChordsButton").on("click", function(){
+                self.resetTrainingModeChords();
+                self.writeSettings();
+                self.writeTrainingChords()
+            });
+
+            $(document).on("keydown", function(e){
+                if(e.which == 39)// right arrow key
+                    self.nextTone();
+                if(e.which == 37)// left arrow key
+                    self.prevTone();
+            });
+        })(this);
+
+
+        this.reset();
+        this.writeSettings();
+        this.writeTrainingChords();
     }
 
     var clazz = Game;
@@ -509,12 +537,168 @@ window.Game = (function(){
         return (binNumber / (numBins - 1.0)) * maxFreq;
     }
 
+    //====================== PUBLIC ANIMATION METHODS ================
+
+    function loadTrainingModeChords(){
+        var chords = Cookies.getJSON("trainingModeChords");
+        if(typeof chords === "undefined"){
+            return ["A", "C", "D", "E", "G", "Am", "Em", "Dm"];
+        }
+        return chords;
+    }
+
+    function saveTrainingModeChords(chords){
+        //TODO: this is shared between all instances
+        Cookies.set("trainingModeChords", chords, {expires: 365});
+    }
+
+    function resetTrainingModeChords(){
+        Cookies.remove("trainingModeChords");
+    }
+
+    function writeChords(chords, target){
+        var dummy = $('<div class="singleToneDisplay"><span class="dummyTone"><span></span><span class="displayedTone" ></span></span>&nbsp;</div>');
+
+        target.children().remove();
+        for(var i=0; i<chords.length; i++){
+            var newTone = dummy.clone();
+            newTone.children().children().text(chords[i]);
+
+            if(i==0)
+                newTone.attr("id", "currentTone");
+            else if(i==1)
+                newTone.attr("id", "nextTone");
+            else
+                newTone.addClass("scrollRight scrollOut");
+
+            target.append(newTone);
+        }
+    }
+
+    function writeTrainingChords(){
+        writeChords(this.loadTrainingModeChords(), this.rootElem.find("#trainingMode .tonesDisplay"));
+    }
+
+    function writeSettings(){
+        var settingsDisplay = this.rootElem.find("#settingsDisplay");
+        settingsDisplay.children().remove();
+
+        var chords = Chord.getResolvableChordNames();
+        var selectedChords = this.loadTrainingModeChords();
+
+        for(var i=0; i<Midi.notes.length; i++){
+            var line = "<tr><td class='chordName'>"+Midi.notes[i]+": </td>";
+
+            for(var j=0; j<chords[Midi.notes[i]].length; j++){
+                var chord = chords[Midi.notes[i]][j];
+                line += "<td>"+chord+" <input type='checkbox' name='"+chord+"' ";
+                if(selectedChords.indexOf(chord) !== -1){
+                    line += "checked='checked' ";
+                }
+                line += "</td>";
+            }
+
+            line += "</tr>";
+
+            settingsDisplay.append(line);
+        }
+
+        (function(self){
+            settingsDisplay.find(":checkbox").on("change", function(){
+                self.saveTrainingModeChords(settingsDisplay.find(":checkbox:checked").toArray().map(function(arg){return arg.name}));
+                self.writeTrainingChords();
+            });
+        })(this);
+    }
+
+    function correctAnimation(){
+        var tone = this.rootElem.find("#currentTone .dummyTone").clone().removeAttr("id").appendTo("#currentTone");
+        window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedCorrectly");}, 10);
+        window.setTimeout(function(){tone.remove();}, 3000);
+    }
+
+    function incorrectAnimation(missing, additional){
+        var tone = this.rootElem.find("#currentTone .dummyTone").clone().removeAttr("id").appendTo(this.rootElem.find("#currentTone"));
+
+        var mElem = this.rootElem.find("#missingTones");
+        mElem.text("");
+
+        var aElem = this.rootElem.find("#additionalTones");
+        aElem.text("");
+
+        if(typeof missing !== "undefined"){
+            this.rootElem.find("#explanationDisplay").css("visibility", "visible");
+            for(var i=0; i<missing.length; i++){
+                mElem.text(mElem.text() + " " + missing[i]);
+            }
+        }else{
+            mElem.text("-");
+        }
+
+        if(typeof additional !== "undefined"){
+            this.rootElem.find("#explanationDisplay").css("visibility", "visible");
+            for(var i=0; i<additional.length; i++){
+                aElem.text(aElem.text() + " " + additional[i]);
+            }
+        }else{
+            aElem.text("-");
+        }
+
+        window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedIncorrectly");}, 10);
+        (function(self){window.setTimeout(function(){
+            tone.remove();
+            /*this hides too early if two animations started within 3s*/
+            self.rootElem.find("#explanationDisplay").css("visibility", "hidden");
+        }, 3000);})(this);
+    }
+
+    function nextTone(){
+        if(this.rootElem.find("#nextTone").size() === 0)
+            return;
+        this.rootElem.find("#prevTone").removeAttr("id").addClass("scrollLeft scrollOut");
+        this.rootElem.find("#currentTone").attr("id", "prevTone");
+        this.rootElem.find("#nextTone").attr("id", "currentTone").removeClass("scrollRight");
+        this.rootElem.find("#currentTone").next().attr("id", "nextTone").removeClass("scrollOut");
+    }
+
+    function prevTone(){
+        if(this.rootElem.find("#prevTone").size() === 0)
+            return;
+        this.rootElem.find("#nextTone").removeAttr("id").addClass("scrollRight scrollOut");
+        this.rootElem.find("#currentTone").attr("id", "nextTone");
+        this.rootElem.find("#prevTone").attr("id", "currentTone").removeClass("scrollLeft");;
+        this.rootElem.find("#currentTone").prev().attr("id", "prevTone").removeClass("scrollOut");
+    }
+
+    function changePage(target){
+        this.rootElem.find("#contentWindow .visible").removeClass("visible").addClass("hidden");
+        this.rootElem.find(".currentMenuEntry").removeClass("currentMenuEntry");
+        this.rootElem.find("#"+target+"Button").addClass("currentMenuEntry");
+        window.clearTimeout(this.currentTransition);
+        this.currentTransition =
+        (function(self){return window.setTimeout(function(){
+            self.rootElem.find("#"+target).removeClass("hidden").addClass("visible");}, 750);
+        })(this);
+    }
+
 
     Game.prototype.constructor = Game;
     Game.prototype.findChord = findChord;
     Game.prototype.findChordContinous = findChordContinous;
     Game.prototype.reset = reset;
     Game.prototype.getFrequencyOfBin = getFrequencyOfBin;
+
+    Game.prototype.loadTrainingModeChords = loadTrainingModeChords;
+    Game.prototype.saveTrainingModeChords = saveTrainingModeChords;
+    Game.prototype.resetTrainingModeChords = resetTrainingModeChords;
+    Game.prototype.writeChords = writeChords;
+    Game.prototype.writeTrainingChords = writeTrainingChords;
+    Game.prototype.writeSettings = writeSettings;
+    Game.prototype.correctAnimation = correctAnimation;
+    Game.prototype.incorrectAnimation = incorrectAnimation;
+    Game.prototype.nextTone = nextTone;
+    Game.prototype.prevTone = prevTone;
+    Game.prototype.changePage = changePage;
 
     return Game;
 
@@ -567,37 +751,5 @@ function updateChordGame(data){
 
 
     document.getElementById('chordgame_text').innerHTML = "Please play: " + currentChordGameTarget.name + "<BR>";
-
 }
-
-//browser compatability
-var browserSupported = false;
-if(typeof navigator.MediaDevices !== "undefined" ){
-    browserSupported = true;
-
-    var getUserMedia = function(constraints, success, fail){
-        var mediaPromise = navigator.MediaDevices.getUserMedia(constraints);
-        mediaPromise.then(success).catch(fail);
-    };
-}else{
-    navigator.getUserMedia = (navigator.getUserMedia ||
-              navigator.webkitGetUserMedia ||
-              navigator.mozGetUserMedia ||
-              navigator.msGetUserMedia);
-    browserSupported = typeof navigator.getUserMedia !== "undefined";
-
-    var getUserMedia = function(constraints, success, fail){
-        console.debug("getting media");
-        navigator.getUserMedia(constraints, success, fail);
-    };
-}
-
-if(browserSupported === false){
-    alert("Sorry, your browser does not (yet?) support the Web Audio API, which this Website requires. Have you tried updating your browser?");
-    // return;
-}else
-
-var game = new Game(getUserMedia);
-var a = Chord.random();
-game.findChordContinous(a, 50, function(arg){console.log(arg)})
 
