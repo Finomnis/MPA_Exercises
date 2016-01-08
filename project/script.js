@@ -677,7 +677,7 @@ window.Game = (function(){
         window.clearTimeout(this.currentTransition);
         this.currentTransition =
         (function(self){return window.setTimeout(function(){
-            self.rootElem.find("#"+target).removeClass("hidden").addClass("visible");}, 750);
+            self.rootElem.find("#"+target).removeClass("hidden").addClass("visible");}, 600);
         })(this);
     }
 
