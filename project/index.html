@@ -7,21 +7,6 @@
       <script src="jquery-2.1.4.min.js"></script>
     </head>
     <body>
-        <span class="warning">
-        This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
-        </span>
-
-        <h1>Debugging</h1>
-        <h2>Live frequency bins</h2>
-        <pre> → Frequency Bins; ↑ Magnitude</pre>
-        <canvas id="debug_liveFrequencyBins" width="1200px" height="300px" style="border:1px solid black"></canvas>
-
-        <h2>Results<h2>
-        <p id="chordgame_text" style="font-size:80%;"></p>
-        <p id="chordfound_text" style="font-size:80%;"></p>
-        <p id="debug_text" style="font-size:80%;"></p>
-
-        <h2>Game draft</h2>
         <div id="mainWindow" style="width:100%; height:1000px; background:black; color:white; font-family:sans">
         <div id="header" style="height:200px; padding:10px 20px 50px 20px; text-align:center; background: linear-gradient(to bottom, #222222 49%,#000000 100%)">
             <h1>Guitar Training and Judgement Tool</h1>
@@ -130,9 +115,19 @@
             This website uses experimental bleeding-edge web technology. If standards change, functionality might suffer. Please report any bugs and thanks for your understanding!
         </div>
         <button id="correct">Correct</button><button id="incorrect">Wrong</button>
+
+        <h1>Debugging</h1>
+        <h2>Live frequency bins</h2>
+        <pre> → Frequency Bins; ↑ Magnitude</pre>
+        <canvas id="debug_liveFrequencyBins" width="1200px" height="300px" style="border:1px solid black"></canvas>
+
+        <h2>Results<h2>
+        <p id="chordgame_text" style="font-size:80%;"></p>
+        <p id="chordfound_text" style="font-size:80%;"></p>
+        <p id="debug_text" style="font-size:80%;"></p>
         <script src="script.js"></script>
         <script>
-        "use_strict";
+        "use strict";
 
         function correctAnimation(){
             var tone = $("#currentTone .displayedTone").clone().removeAttr("id").appendTo("#currentTone");
