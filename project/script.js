@@ -1,7 +1,7 @@
 // "use strict";
 
 window.Midi = (function(){
-    var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B", "H"];
+    var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "B♭", "B"];
 
     function Midi(pitch){
         this.pitch = pitch;
@@ -181,6 +181,7 @@ window.Chord = (function(){
             [[0, 7, 4], ""],
             [[0, 7, 3], "m"],
             [[0, 7, 5], "4"],
+            [[0, 7, 3, 10], "m7"],
             [[0, 7, 4, 10], "7"],
             [[0, 7, 4, 11], "maj7"]
         ];
