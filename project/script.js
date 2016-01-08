@@ -202,6 +202,34 @@ window.Chord = (function(){
         return new Chord();
     }
 
+    /** @brief returns a Chord according to the name
+    */
+    var fromName = clazz.fromName = function(name){
+        var chord = new Chord();
+
+        var baseNote = Midi.notes.indexOf(name.substr(0,2));
+        if(baseNote == -1)
+            baseNote = Midi.notes.indexOf(name.substr(0,1));
+        if(baseNote == -1)
+            return chord;
+
+        var suffix = name.substr(Midi.notes[baseNote].length);
+
+        chord.baseNote = true;
+
+        for(var i = 0; i < noteCombinations.length; i++){
+            var combination = noteCombinations[i];
+            if(combination.name !== suffix)
+                continue;
+
+            for(var j = 0; j < combination.notes.length; j++){
+                chord.tones[(combination.notes[j]+baseNote)%12] = true;
+            }
+        }
+
+        return chord;
+    }
+
     /** @brief returns a Chord from a fft data vector
     */
     var getChord = clazz.getChord = function(data){
