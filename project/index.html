@@ -37,15 +37,20 @@
 
                 <div class="tonesDisplay" style="width:100%; text-align:center;">
                 </div>
-                <div id="explanationDisplay" style="text-align:left; visibility:hidden">
-                    <b>Incorrect chord detected! </b><br />
-                    <b>Missed tones:</b> <span id="missingTones"></span> <br />
-                    <b>Wrong tones:</b> <span id="additionalTones"></span>
+                <div class="explanationDisplay" style="text-align:left; visibility:hidden">
+                    <b>Wrong! You played: <span class="playedTone"></span></b><br />
+                    <b>Missed tones:</b> <span class="missingTones"></span> <br />
+                    <b>Wrong tones:</b> <span class="additionalTones"></span>
                 </div>
             </div>
             <div id="challengeMode" class="hidden">
 
                 <div class="tonesDisplay" style="width:100%; text-align:center;">
+                </div>
+                <div class="explanationDisplay" style="text-align:left; visibility:hidden">
+                    <b>Wrong! You played: <span class="playedTone"></span></b><br />
+                    <b>Missed tones:</b> <span class="missingTones"></span> <br />
+                    <b>Wrong tones:</b> <span class="additionalTones"></span>
                 </div>
             </div>
             <div id="about" class="hidden">
@@ -121,7 +126,7 @@
         }else{
             var game = new Game(getUserMedia, "#mainWindow");
             var a = Chord.random();
-            game.findChordContinous(a, 50, function(arg){console.log(arg)})
+            game.findChord();
         }
         </script>
       </body

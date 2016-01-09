@@ -46,7 +46,7 @@ body {
 
 .singleToneDisplay,
 .singleToneDisplay.scrollRight,
-.singleToneDisplay#nextTone {
+.singleToneDisplay.nextTone {
   transition: 0.75s cubic-bezier(0.770, 0.000, 0.175, 1.000),
               transform 1.25s cubic-bezier(0.770, 0.000, 0.175, 1.000);
 
@@ -56,7 +56,7 @@ body {
 }
 
 .singleToneDisplay.scrollLeft,
-.singleToneDisplay#prevTone {
+.singleToneDisplay.prevTone {
   transition: 0.75s cubic-bezier(0.770, 0.000, 0.175, 1.000),
               transform 1.25s cubic-bezier(0.770, 0.000, 0.175, 1.000);
   opacity: 0.4;
@@ -65,7 +65,7 @@ body {
 }
 
 .singleToneDisplay.scrollIn,
-.singleToneDisplay#currentTone {
+.singleToneDisplay.currentTone {
   transition: 1.25s cubic-bezier(0.770, 0.000, 0.175, 1.000),
               transform 0.75s cubic-bezier(0.770, 0.000, 0.175, 1.000);
   opacity: 1;
@@ -75,8 +75,8 @@ body {
 
 .singleToneDisplay.scrollOut.scrollLeft,
 .singleToneDisplay.scrollOut.scrollRight,
-.singleToneDisplay.scrollOut#prevTone,
-.singleToneDisplay.scrollOut#nextTone {
+.singleToneDisplay.scrollOut.prevTone,
+.singleToneDisplay.scrollOut.nextTone {
   transition: 0.75s ease-in;
   opacity: 0;
   transform: scale(0,0);
@@ -96,6 +96,10 @@ body {
   opacity: 0;
   transform: scale(2,2);
   color:red;
+}
+
+.explanationDisplay .playedTone {
+	font-size: 1.5em;
 }
 
 

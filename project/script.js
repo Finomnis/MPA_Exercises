@@ -378,6 +378,14 @@ window.Game = (function(){
         //'class' variables
         this.analyser = null;
         this.currentTransition = null;
+        this.currentChordTimeout = null;
+        this.currentGameTimeout = null;
+
+        this.currentChord = Chord.emptyChord();
+        this.stableChord = null;
+        this.currentChordStartTime = new Date().getTime();
+        this.lastDetectedChord = Chord.emptyChord();
+
         this.rootElem = $(rootElem);
         this.liveFreqBins = $("#debug_liveFrequencyBins");
         this.runningFFT = $("#debug_runningFFT");
@@ -385,7 +393,7 @@ window.Game = (function(){
         //set callbacks
         (function(self){
             self.rootElem.find("#correct").on("click", function(){self.correctAnimation()});
-            self.rootElem.find("#incorrect").on("click", function(){self.incorrectAnimation(["a", "e"])});
+            self.rootElem.find("#incorrect").on("click", function(){self.incorrectAnimation(Chord.random(), ["some", "thing"], ["else"])});
             self.rootElem.find("#trainingModeButton").on("click", function(){self.changePage("trainingMode")});
             self.rootElem.find("#challengeModeButton").on("click", function(){self.changePage("challengeMode")});
             self.rootElem.find("#aboutButton").on("click", function(){self.changePage("about")});
@@ -405,7 +413,6 @@ window.Game = (function(){
         })(this);
 
 
-        this.reset();
         this.writeSettings();
         this.writeTrainingChords();
     }
@@ -421,6 +428,8 @@ window.Game = (function(){
         self.analyser = self.audioContext.createAnalyser();
         self.source = self.audioContext.createMediaStreamSource(stream);
         self.source.connect(self.analyser);
+
+        self.resetAndStartGame();
     }
 
     /** @brief handles the user rejecting the media access
@@ -438,7 +447,7 @@ window.Game = (function(){
      *  @return a stable chord if it was detected for longer than 200ms
      *          or null if no chord was detected or for shorter than 200ms
      */
-    function getStableChord(self, data){
+    function findStableChord(self, data){
         var chord = Chord.getChord(data);
 
         if(!self.currentChord.equals(chord)){
@@ -458,14 +467,16 @@ window.Game = (function(){
             return null;
         }
 
-        if(self.lastDeliveredChord.equals(self.currentChord)){
-            return null;
-        }
-
-        self.lastDeliveredChord = chord;
+        self.lastDetectedChord = chord;
 
         return chord;
     }
+
+    function getCurrentPage(self){
+        var curButtonId = self.rootElem.find(".currentMenuEntry").attr("id");
+        return curButtonId.substr(0, curButtonId.length-"Button".length);
+    }
+
     /** @brief normalizes a fft data vector, truncates frequencies <75 and >1000Hz
     */
     function normalizeData(self, data){
@@ -499,61 +510,86 @@ window.Game = (function(){
         return output.slice(0, highest_valid_bin);
     }
 
-    //================= PUBLIC METHODS ========================
-    /** @brief resets the chord detection data
+    /** @brief checks regularly if a stable chord has been detected
+    *          if it has not been shown to the user yet, does so
     */
-    function reset(){
-        this.currentChord = Chord.emptyChord();
-        this.currentChordStartTime = new Date().getTime();
-        this.lastDeliveredChord = Chord.emptyChord();
+    function trainingMode(self){
+        var currentlySearchedChord = Chord.fromName(getCurrentChordName(self));
+
+        if(self.stableChord !== null &&
+            self.currentChordStartTime !== self.lastAcknowledgedChordStartTime){
+
+            if(currentlySearchedChord.equals(self.stableChord)){
+                self.correctAnimation();
+            }else{
+                var result = currentlySearchedChord.compare(self.stableChord);
+                self.incorrectAnimation(self.stableChord, result.missing, result.wrong);
+            }
+
+            self.lastAcknowledgedChordStartTime = self.currentChordStartTime;
+        }
+
+        self.currentGameTimeout = window.setTimeout(function(){trainingMode(self)}, 100);
     }
 
+    /** @brief checks regularly if a stable chord has been detected
+    *          if it has not been shown to the user yet, does so. if the chord
+    *          was correct it jumps to the next one
+    */
+    function challengeMode(self){
+        var currentlySearchedChord = Chord.fromName(getCurrentChordName(self));
 
-    /** @brief checks if a given chord has been played over 200ms
-     *  call this regularly (about every 50ms or so) to check for the chord
-     *  and examine the result.
-     *
-     *  @param refChord a Chord instance to look for
-     *
-     *  @return an object with this layout:
-     *          {found: true/false, //whether an accord was found at all
-     *           correct: true/fasle, //whether the detected chord matches refChord
-     *           missing: list, //a list of missing tones if a chord was found
-     *           wrong: list} //a list of wrong tones if a chord was found
+        if(self.stableChord !== null &&
+            self.currentChordStartTime !== self.lastAcknowledgedChordStartTime){
+
+            if(currentlySearchedChord.equals(self.stableChord)){
+                self.correctAnimation();
+                self.nextTone();
+            }else{
+                var result = currentlySearchedChord.compare(self.stableChord);
+                self.incorrectAnimation(self.stableChord, result.missing, result.wrong);
+            }
+
+            self.lastAcknowledgedChordStartTime = self.currentChordStartTime;
+        }
+
+        self.currentGameTimeout = window.setTimeout(function(){challengeMode(self)}, 100);
+    }
+
+    function getCurrentChordName(self){
+        return self.rootElem.find(".visible .currentTone .displayedTone").eq(0).text();
+    }
+
+    //================= PUBLIC METHODS ========================
+    /** @brief checks if a chord has been played over 200ms
+     *  if a chord has been detected it is saved in this.stableChord
+     *  runs asynchronously until stopFindingChord is called
      */
-    function findChord(refChord){
-        if(this.analyser == null)
-            return {found: false}
-        this.analyser.fftSize = 4096*4;
-        this.analyser.smoothingTimeConstant = 0.8;
-        var bufferLength = this.analyser.frequencyBinCount;
+    function findChord(){
+        if(this.analyser !== null){
+            this.analyser.fftSize = 4096*4;
+            this.analyser.smoothingTimeConstant = 0.8;
+            var bufferLength = this.analyser.frequencyBinCount;
 
-        var dataArrayF = new Float32Array(bufferLength);
+            var dataArrayF = new Float32Array(bufferLength);
 
-        this.analyser.getFloatFrequencyData(dataArrayF);
+            this.analyser.getFloatFrequencyData(dataArrayF);
 
-        var data = normalizeData(this, dataArrayF);
-        var stableChord = getStableChord(this, data);
-
-        if(stableChord == null){
-            return {found: false };
+            var data = normalizeData(this, dataArrayF);
+            this.stableChord = findStableChord(this, data);
         }
 
-        var comparison = refChord.compare(stableChord);
-        var result = refChord.equals(stableChord);
-        return { found: true, correct: result, missing: comparison.missing, wrong: comparison.wrong };
+        this.currentChordTimeout = window.setTimeout(function(self){
+            return function(){self.findChord()}
+        }(this), 50);
     }
 
-    function findChordContinous(refChord, interval, callback){
-        var result = this.findChord(refChord);
-        if(result.found === true){
-            callback(result);
-            this.reset();
-        }else{
-            window.setTimeout(function(self){
-                return function(){self.findChordContinous(refChord, interval, callback)}
-            }(this), interval);
-        }
+    /** @brief stops the chord-finding-"thread"
+     */
+    function stopChordFinding(){
+        if(this.currentChordTimeout !== null)
+            window.clearTimeout(this.currentChordTimeout);
+        this.currentChordTimeout = null;
     }
 
     /** @brief returns the frequency of a given fft bin according to the
@@ -593,9 +629,9 @@ window.Game = (function(){
             newTone.children().children().text(chords[i]);
 
             if(i==0)
-                newTone.attr("id", "currentTone");
+                newTone.addClass("currentTone");
             else if(i==1)
-                newTone.attr("id", "nextTone");
+                newTone.addClass("nextTone");
             else
                 newTone.addClass("scrollRight scrollOut");
 
@@ -640,62 +676,70 @@ window.Game = (function(){
     }
 
     function correctAnimation(){
-        var tone = this.rootElem.find("#currentTone .dummyTone").clone().removeAttr("id").appendTo("#currentTone");
+        var tone = this.rootElem.find(".visible .currentTone .dummyTone").clone().appendTo(".currentTone");
         window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedCorrectly");}, 10);
         window.setTimeout(function(){tone.remove();}, 3000);
     }
 
-    function incorrectAnimation(missing, additional){
-        var tone = this.rootElem.find("#currentTone .dummyTone").clone().removeAttr("id").appendTo(this.rootElem.find("#currentTone"));
+    function incorrectAnimation(actual, missing, additional){
+        var tone = this.rootElem.find(".visible .currentTone .dummyTone").clone().appendTo(this.rootElem.find(".currentTone"));
 
-        var mElem = this.rootElem.find("#missingTones");
+        var mElem = this.rootElem.find(".visible .missingTones");
         mElem.text("");
 
-        var aElem = this.rootElem.find("#additionalTones");
+        var aElem = this.rootElem.find(".visible .additionalTones");
         aElem.text("");
 
+        var pElem = this.rootElem.find(".visible .playedTone");
+        pElem.text(actual.toString());
+
         if(typeof missing !== "undefined"){
-            this.rootElem.find("#explanationDisplay").css("visibility", "visible");
+            this.rootElem.find(".visible .explanationDisplay").css("visibility", "visible");
             for(var i=0; i<missing.length; i++){
-                mElem.text(mElem.text() + " " + missing[i]);
+                if(missing[i])
+                    mElem.text(mElem.text() + " " + Midi.notes[i]);
             }
         }else{
             mElem.text("-");
         }
 
         if(typeof additional !== "undefined"){
-            this.rootElem.find("#explanationDisplay").css("visibility", "visible");
+            this.rootElem.find(".visible .explanationDisplay").css("visibility", "visible");
             for(var i=0; i<additional.length; i++){
-                aElem.text(aElem.text() + " " + additional[i]);
+                if(additional[i])
+                    aElem.text(aElem.text() + " " + Midi.notes[i]);
             }
         }else{
             aElem.text("-");
         }
 
         window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedIncorrectly");}, 10);
-        (function(self){window.setTimeout(function(){
-            tone.remove();
-            /*this hides too early if two animations started within 3s*/
-            self.rootElem.find("#explanationDisplay").css("visibility", "hidden");
+        this.currentIncorrectAnimationTimeout = (function(self){
+            if(self.currentIncorrectAnimationTimeout)
+                window.clearTimeout(self.currentIncorrectAnimationTimeout);
+            return window.setTimeout(function(){
+                tone.remove();
+                /*this hides too early if two animations started within 3s*/
+                self.rootElem.find(".visible .explanationDisplay").css("visibility", "hidden");
         }, 3000);})(this);
     }
 
     function nextTone(){
-        if(this.rootElem.find("#nextTone").size() === 0)
+        if(this.rootElem.find(".visible .nextTone").size() === 0)
             return;
-        this.rootElem.find("#prevTone").removeAttr("id").addClass("scrollLeft scrollOut");
-        this.rootElem.find("#currentTone").attr("id", "prevTone");
-        this.rootElem.find("#nextTone").attr("id", "currentTone").removeClass("scrollRight");
-        this.rootElem.find("#currentTone").next().attr("id", "nextTone").removeClass("scrollOut");
+        this.rootElem.find(".visible .prevTone").removeClass("prevTone").addClass("scrollLeft scrollOut");
+        this.rootElem.find(".visible .currentTone").removeClass("currentTone").addClass("prevTone");
+        this.rootElem.find(".visible .nextTone").removeClass("scrollRight nextTone").addClass("currentTone");
+        this.rootElem.find(".visible .currentTone").next().addClass("nextTone").removeClass("scrollOut");
     }
 
     function prevTone(){
-        if(this.rootElem.find("#prevTone").size() === 0)
+        if(this.rootElem.find(".visible .prevTone").size() === 0)
             return;
-        this.rootElem.find("#nextTone").removeAttr("id").addClass("scrollRight scrollOut");
-        this.rootElem.find("#currentTone").attr("id", "nextTone");
-        this.rootElem.find("#prevTone").attr("id", "currentTone").removeClass("scrollLeft");;
-        this.rootElem.find("#currentTone").prev().attr("id", "prevTone").removeClass("scrollOut");
+        this.rootElem.find(".visible .nextTone").removeClass("nextTone").addClass("scrollRight scrollOut");
+        this.rootElem.find(".visible .currentTone").removeClass("currentTone").addClass("nextTone");
+        this.rootElem.find(".visible .prevTone").removeClass("scrollLeft prevTone").addClass("currentTone");
+        this.rootElem.find(".visible .currentTone").prev().addClass("prevTone").removeClass("scrollOut");
     }
 
     function changePage(target){
@@ -704,17 +748,39 @@ window.Game = (function(){
         this.rootElem.find("#"+target+"Button").addClass("currentMenuEntry");
         window.clearTimeout(this.currentTransition);
         this.currentTransition =
-        (function(self){return window.setTimeout(function(){
-            self.rootElem.find("#"+target).removeClass("hidden").addClass("visible");}, 600);
+        (function(self){
+            return window.setTimeout(function(){
+                self.rootElem.find("#"+target).removeClass("hidden").addClass("visible");
+                self.resetAndStartGame();
+            }, 600);
         })(this);
+    }
+
+    function resetAndStartGame(){
+        if(this.currentGameTimeout !== null)
+            window.clearTimeout(this.currentGameTimeout);
+
+        var currentPage = getCurrentPage(this);
+
+        if(currentPage === "trainingMode"){
+            trainingMode(this);
+        }else if(currentPage === "challengeMode"){
+            var chords = [];
+            var available = loadTrainingModeChords();
+            for(var i=0; i<200; i++){
+                chords.push(available[parseInt(Math.random()*available.length)])
+            }
+            this.writeChords(chords, $("#challengeMode .tonesDisplay"));
+            challengeMode(this);
+        }
     }
 
 
     Game.prototype.constructor = Game;
     Game.prototype.findChord = findChord;
-    Game.prototype.findChordContinous = findChordContinous;
-    Game.prototype.reset = reset;
+    Game.prototype.stopChordFinding = stopChordFinding;
     Game.prototype.getFrequencyOfBin = getFrequencyOfBin;
+    Game.prototype.resetAndStartGame = resetAndStartGame;
 
     Game.prototype.loadTrainingModeChords = loadTrainingModeChords;
     Game.prototype.saveTrainingModeChords = saveTrainingModeChords;
@@ -731,53 +797,3 @@ window.Game = (function(){
     return Game;
 
 })();
-
-var currentChordGameTarget = false;
-var feedbackText = "<BR><BR><BR>";
-function updateChordGame(data){
-
-    if(currentChordGameTarget == false){
-            currentChordGameTarget = Chord.random();
-            resetFindChord();
-    }
-
-    var chordResult = findChord(currentChordGameTarget.chord, data);
-
-    var chordFoundText = "";
-    chordFoundText += "Chord found: " + chordResult.found + "<BR>";
-
-    if(chordResult.found){
-
-        feedbackText = "Correct: " + chordResult.correct + "<BR>";
-        feedbackText += "Missing:"
-        for(var i = 0; i < chordResult.missing.length; i++){
-            if(chordResult.missing[i] == true){
-                feedbackText += " " + midiToText(i);
-            }
-        }
-        feedbackText += "<BR>";
-        feedbackText += "Wrong:";
-        for(var i = 0; i < chordResult.wrong.length; i++){
-            if(chordResult.wrong[i] == true){
-                feedbackText += " " + midiToText(i);
-            }
-        }
-        feedbackText += "<BR>";
-    }
-
-    chordFoundText += feedbackText;
-
-    document.getElementById('chordfound_text').innerHTML = chordFoundText;
-
-
-    if(chordResult.found == true){
-        if(chordResult.correct){
-            currentChordGameTarget = Chord.random();
-            resetFindChord();
-        }
-    }
-
-
-    document.getElementById('chordgame_text').innerHTML = "Please play: " + currentChordGameTarget.name + "<BR>";
-}
-
