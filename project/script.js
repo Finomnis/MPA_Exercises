@@ -714,14 +714,15 @@ window.Game = (function(){
         }
 
         window.setTimeout(function(){tone.children(".displayedTone").addClass("tonePlayedIncorrectly");}, 10);
-        this.currentIncorrectAnimationTimeout = (function(self){
-            if(self.currentIncorrectAnimationTimeout)
-                window.clearTimeout(self.currentIncorrectAnimationTimeout);
+        window.setTimeout(function(){tone.remove();}, 3000);
+        this.currentExplanationTimeout = (function(self){
+            if(self.currentExplanationTimeout){
+                window.clearTimeout(self.currentExplanationTimeout);
+            }
             return window.setTimeout(function(){
-                tone.remove();
-                /*this hides too early if two animations started within 3s*/
                 self.rootElem.find(".visible .explanationDisplay").css("visibility", "hidden");
-        }, 3000);})(this);
+            }, 3000);
+        })(this);
     }
 
     function nextTone(){
