@@ -1,0 +1,229 @@
+\documentclass[a4paper, 9pt, twocolumn]{extarticle}
+\usepackage[dvips]{graphicx}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage[ansinew]{inputenc}
+\usepackage{parskip}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage[]{auto-pst-pdf}
+\usepackage{pstricks}
+\usepackage{pst-plot}
+\usepackage{pst-node}
+\usepackage{multido}
+\usepackage{url}
+
+
+\addtolength{\textwidth}{2.1cm}
+\addtolength{\topmargin}{-2.4cm}
+\addtolength{\oddsidemargin}{-1.1 cm}
+\addtolength{\textheight}{4.5cm}
+\setlength{\columnsep}{0.7cm}
+
+% User defined macros
+\def\x{{\mathbf x}}
+\def\L{{\cal L}}
+\def\SM{{\mathcal S}}
+\def\SMO{{\mathcal S^{\mathrm{chroma}}}}
+\def\SMS{{\mathcal S^{\mathrm{enh}}}}
+\def\SMP{{\mathcal S^{\mathrm{path}}}}
+\def\SMPI{{\mathcal S^{\mathrm{struct}}}}
+%\def\SMPC{{\mathcal S^{\mathrm{pc}}}}
+\def\SMPC{{\mathcal S^{\mathrm{pb}}}}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\date{\normalsize 12.01.2015}
+
+\title{\vspace{-8mm}\textbf{\Large
+Summary of Chapter 6 - Tempo and Beat Tracking
+}}
+
+% Hier die Namen und Daten der beteiligten Autoren eintragen
+\author{
+%
+\begin{minipage}{0.4\textwidth}
+\center
+Adler, Tilman\\21450674
+\end{minipage}
+%
+\begin{minipage}{0.4\textwidth}
+\center
+Stumpf, Martin\\21450903
+\end{minipage}
+}
+
+
+\maketitle
+\thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+\label{section:introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+This summary covers Chapter 6 of ``Fundamentals of Music Processing'' by Meinard M\"uller
+\cite{Mueller15_FundamentalsMusicProcessig_SPRINGER}.
+Its structure follows that of the chapter itself, i.e. beginning with feature extraction
+of note onsets by \emph{energy}, \emph{spectral information}, \emph{phase} and
+\emph{complex-domain information} respectively. We will then continue to Tempo Analysis
+by \emph{Fourier Analysis}, \emph{Autocorrelation} and \emph{Predominant Local Pulse}.
+Finally we cover Beat Tracking and Adaptive Windowing.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Main Section}
+\label{section:main}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Introduction}
+Music tempo, while easily detected by humans, is not easily recognised by a computer.
+Not only can it be useful to have the tempo information itself. It can increase confidence
+in other parts of a detector, too.
+
+The chapter at hand covers different ways to extract
+onsets (loosely speaking, the time a note is started to be played) as features and
+further analysis to extract tempo information and track a beat.
+
+\subsection{Feature extraction: Detection of Onsets}
+\label{novelty_functions}
+\subsubsection{Energy based novelty function}
+The energy based approach uses the fact that with the onset of a note, the energy in the
+signal rises rapidly. This can be detected by first computing a \emph{local energy function} from
+the signal. This results in a function describing the \emph{energy distribution}. This function
+is then \emph{derived}. The negative parts of the derivative are discarded
+(\emph{half-wave rectification}). Small peaks which have been insignificant compared to large
+ones can be enhanced by \emph{applying a logarithm}.
+
+\subsubsection{Spectral based novelty function}
+In energy based approaches noise can render small energy peaks invisible. Therefore
+a spectral based novelty is introduced. Here, a \emph{Short Time Fourier Transform} (STFT) is
+applied to the signal to seperate frequencies.
+
+The idea is, that a peak might still be
+detectable in a certain frequency band while being superimposed by noise in the others.
+To enhance small onsets logarithmic compression is applied to the spectrogram. Then the approach
+is similar to the energy based one. The frequency bins are \emph{derived}, \emph{half-wave
+rectified} and \emph{summed up}. To reduce the baseline noise local average is computed and
+subtracted from the resulting function.
+
+\subsubsection{Phase based novelty function}
+Another approach to detect onsets is to use the phase of the STFT frequency coefficients.
+This phase does not change during a stable tone and changes rapidly and randomly during
+the noise-like sound (called transient) right after an onset.
+
+An unstable phase can be detected
+by the \emph{second-order derivative}. The absolut values of the derivative are then \emph{summed up}
+across all frequency bins.
+
+\subsubsection{Complex-Domain novelty function}
+While the phase based approach only uses phase information, a change into the complex
+domain allows using the magnitude, too. At each timestep a expected value is \emph{extrapolated}
+from the value of the previous magnitude and phase. An onset can be detected by \emph{subtracting}
+the expected from the measured value and half-wave rectification.
+
+
+\subsection{Tempo Analysis}
+Based on the onsets as features tempo information about the musical piece can be derived. The
+chapter covers two approaches: a \emph{Fourier Transform} based one and one using
+\emph{autocorrelation}. Both yield a tempogram. A tempogram is similar to a spectrogram, but
+instead of musical tone frequencies it represents onset frequencies.
+
+\subsubsection{Fourier Tempogram}
+\label{fourier_tempogram}
+The tempogram in this approach is obtained by applying a STFT to a novelty function as described
+in \ref{novelty_functions}. Similarly to overtones in music this yields ``tempo harmonics''
+i.e. multiples of the detected onset frequency. The frequency axis in the tempogram now
+actually models frequencies of the onsets.
+
+\subsubsection{Autocorrelation Tempogram}
+Another way to retrieve the tempogram is by convolving the novelty function with itself
+in a local window. Regular onsets then overlap, yielding high values in the tempogram. Thus, strictly
+speaking the frequency axis in it now models \emph{time-lag}. That is, it does not represent
+a frequency, but how many samples the function has to be shifted so that repetitions in it
+match themselves.
+
+Therefore in order to be comparable to the Fourier-based approach the results have to be
+inverted and stretched across a logarithmic axis.
+
+Another difference to the Fourier-based algorithm is that here, there are ``tempo subharmonics''
+in the resulting tempogram. That is, for each base frequency there are multiple other
+frequencies with the lag value $l' = \frac{1}{n}l, n\in\mathbb{N}^+$.
+
+\subsubsection{Cyclic Tempogram}
+Analogous to chroma featuers in tone frequency analysis, one can define a \emph{Cyclic Tempogram}
+to be a tempogram in which onset frequencies and their multiples (``tempo harmonics'') are
+added together. This can be useful, for example, for music segmentation, if pitch cannot be
+used reliably.
+
+As is the case in a chromagram, where the base tone is $ A4=440\text{Hz} $, for a cyclic
+tempogram a base onset frequency $\tau$ has to be defined.
+
+\subsection{Beat and Pulse Tracking}
+Until now we have only detected the predominant onsets. The task which is tackled by \emph{Beat
+Tracking} is to use the predominant tempo to reconstruct the actual beats. That includes those with
+a very light or nonexistent onset (pauses).
+
+\subsubsection{Predominant Local Pulse}
+To achieve this, the \emph{Predominant Local Pulse} (PLP) function is created from the phase
+information included in the \emph{Fourier Tempogram} as described in \ref{fourier_tempogram}.
+
+First, the frequency bin with the highest magnitude within a time-window is chosen.
+Then, the phase information of this bin is used to create a respective \emph{windowed sinusoid}.
+All of those of all (overlapping) windows are \emph{added up} and \emph{half-wave rectified}.
+
+One of the advantages of this method is, that it is pretty robust against changes in tempo.
+However where a sudden tempo change occurs the value of the PLP function becomes close to zero
+as badly aligned windowed sinusoids cancel each other out.
+
+\subsubsection{Beat Tracking by Dynamic Programming}
+In those cases where the beats of a song are strong and steady, i.e. there are no tempo changes,
+one does not need the flexibility of the PLP algorithm. Instead, using a rough given global tempo
+estimate, one can calculate the \emph{estimated rough distance} between two beats.
+
+Having fixed a beat one can now search for the optimal previous beat by utilizing a penalty function.
+This function is given the distance between the current and the previous beat as input. It then needs to
+penalize (positive and negative) deviations between the estimated rough distance and the given distance.
+
+Finally, one can choose the set of length $L$ of all beats, which maximizes the beat magnitudes $\Delta$
+and at the same time minimizes the penalty functions $P$ on all beats $b_l$ in the set as follows:
+
+\begin{equation}
+\sum_{l=1}^{L} \Delta (b_l) - \lambda \sum_{l=2}^{L} P(b_l - b_{l-1})
+\end{equation}
+
+With $\lambda$ being a arbitrary weight parameter.
+
+This set can be computed very efficiently using dynamic programming.
+
+\subsubsection{Adaptive Windowing}
+The thusly detected beat information can be used to improve upon pitch detection by removing transient
+parts of a beat, which are typically pretty noisy, from the window. That means windows are no longer
+time dependent but beat dependent and not necessarily equally spaced and sized.
+
+As the noisy part is removed the pitch detection becomes a lot clearer and optimally windows do not comprise
+more than one pitch.
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Feedback}
+\label{section:feedback}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+See lecture evaluation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{abbrv}
+\small
+\bibliography{references}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\end{document}
