@@ -523,7 +523,7 @@ window.Game = (function(){
                 self.correctAnimation();
             }else{
                 var result = currentlySearchedChord.compare(self.stableChord);
-                self.incorrectAnimation(self.stableChord, result.missing, result.wrong);
+                self.incorrectAnimation(self.stableChord, result.wrong, result.missing);
             }
 
             self.lastAcknowledgedChordStartTime = self.currentChordStartTime;
@@ -547,7 +547,7 @@ window.Game = (function(){
                 self.nextTone();
             }else{
                 var result = currentlySearchedChord.compare(self.stableChord);
-                self.incorrectAnimation(self.stableChord, result.missing, result.wrong);
+                self.incorrectAnimation(self.stableChord, result.wrong, result.missing);
             }
 
             self.lastAcknowledgedChordStartTime = self.currentChordStartTime;
